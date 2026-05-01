@@ -1,0 +1,834 @@
+<!doctype html>
+<html lang="th" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSDA Document System</title>
+    
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <style>
+        :root { --kmitl-orange: #ea580c; } /* เปลี่ยนส้มให้ดูพรีเมียมและทันสมัยขึ้น */
+        
+        /* สู้กับ WordPress wpautop (การเติม <br> และ <p> อัตโนมัติ) */
+        #osda-app-wrapper br,
+        #osda-app-wrapper p:empty {
+            display: none !important;
+        }
+
+        /* บังคับให้พื้นหลังกว้างเต็มจอ ทะลุขอบเขตจำกัดความกว้างของ WordPress Theme */
+        #osda-app-wrapper {
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%) !important; /* พื้นหลังสีเทาอ่อนสะอาดตา */
+            min-height: 100vh;
+            width: 100vw !important;
+            position: relative;
+            left: 50%;
+            transform: translateX(-50%);
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* สร้างขอบเขตไม่ให้ Theme WordPress มารบกวน */
+        #osda-app-wrapper * { 
+            font-family: 'Sarabun', sans-serif !important;
+            box-sizing: border-box !important; 
+        }
+        
+        #osda-app-wrapper p {
+            margin: 0 !important;
+            padding: 0 !important;
+            line-height: normal !important;
+        }
+        
+        body { color: #1e293b; margin: 0; overflow-x: hidden; }
+        
+        /* ดันขอบด้านบนลงมาเผื่อระยะ WP Header */
+        .hub-container { 
+            max-width: 500px;
+            margin: auto; padding: 60px 20px 40px 20px !important; min-height: 100vh;
+            position: relative;
+        }
+        
+        /* ป้องกัน CSS ของ WordPress ตีกับกล่อง Header + อัปเกรดเงาให้ดูมีมิติ */
+        .hub-header-box {
+            background: rgba(255, 255, 255, 0.95) !important;
+            backdrop-filter: blur(12px) !important;
+            -webkit-backdrop-filter: blur(12px) !important;
+            padding: 50px 24px 30px 24px !important; 
+            border-radius: 32px !important;
+            border: 1px solid #ffffff !important; 
+            margin-bottom: 32px !important; 
+            box-shadow: 0 12px 35px -5px rgba(0,0,0,0.06), 0 4px 15px rgba(0,0,0,0.02) !important;
+            display: flex !important;
+            flex-direction: column !important; 
+            align-items: center !important; 
+            justify-content: center !important;
+            position: relative !important;
+        }
+
+        .logo-text-osda {
+            font-weight: 900 !important;
+            background: linear-gradient(135deg, #ea580c, #f97316);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: block !important; 
+            text-align: center !important;
+        }
+        .logo-sidebar { font-size: 32px !important; margin-bottom: 10px !important; line-height: 1 !important; }
+
+        .hub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        
+        /* อัปเกรดการ์ดเมนูให้เด้งเวลานำเมาส์ไปชี้ (Hover) */
+        .hub-card { 
+            background: linear-gradient(145deg, #ffffff, #fcfcfd);
+            border-radius: 28px; 
+            border: 1px solid #ffffff; 
+            padding: 24px 12px; display: flex; flex-direction: column; align-items: center; 
+            gap: 14px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            box-shadow: 0 4px 15px -2px rgba(0,0,0,0.03), inset 0 -2px 0 rgba(0,0,0,0.01);
+        }
+        .hub-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px -4px rgba(0,0,0,0.06), inset 0 -2px 0 rgba(0,0,0,0.01);
+        }
+        .hub-card:active { transform: scale(0.96); }
+
+        /* ใส่สีพื้นหลังให้ไอคอนเมนูต่างๆ อัตโนมัติ โดยไม่แก้ HTML */
+        .hub-card > div:first-child {
+            width: 56px !important; height: 56px !important; border-radius: 20px !important;
+            box-shadow: inset 0 2px 5px rgba(255,255,255,0.5), 0 4px 10px rgba(0,0,0,0.04);
+            background-image: linear-gradient(135deg, #fff7ed, #ffedd5) !important;
+        }
+        .hub-card:nth-child(2) > div:first-child { background-image: linear-gradient(135deg, #eff6ff, #dbeafe) !important; }
+        .hub-card:nth-child(3) > div:first-child { background-image: linear-gradient(135deg, #f0fdf4, #dcfce7) !important; }
+        .hub-card:nth-child(4) > div:first-child { background-image: linear-gradient(135deg, #fef2f2, #fee2e2) !important; }
+        .hub-card:nth-child(5) > div:first-child { background-image: linear-gradient(135deg, #f0fdfa, #ccfbf1) !important; }
+        
+        /* อัปเกรด z-index ให้เหนือ WP ทั้งหมด */
+        #sidebar {
+            position: fixed !important; top: 0 !important; left: -300px; width: 280px !important; height: 100% !important;
+            background: white !important; z-index: 999999 !important;
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 20px 0 40px rgba(0,0,0,0.08) !important; padding: 40px 15px 30px 15px !important;
+            display: flex !important; flex-direction: column !important;
+            border-right: 1px solid #f1f5f9;
+        }
+        #sidebar.open { left: 0 !important; }
+        #sidebarOverlay {
+            position: fixed !important; inset: 0 !important; background: rgba(15, 23, 42, 0.4) !important; z-index: 999998 !important;
+            display: none; backdrop-filter: blur(3px) !important; -webkit-backdrop-filter: blur(3px) !important;
+        }
+
+        .nav-item {
+            width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+            border-radius: 16px; border: none; cursor: pointer; transition: all 0.2s ease;
+            font-weight: 600; font-size: 15px; margin-bottom: 8px; background: transparent; color: #64748b;
+        }
+        .nav-item:hover { background: #f8fafc; color: #334155; }
+        .nav-item.home { background: #f1f5f9; color: #475569; border: 1px solid transparent; margin-bottom: 25px; justify-content: center; }
+        .nav-item.new { color: #ea580c; } .nav-item.new:hover { background: #fff7ed; }
+        .nav-item.backfill { color: #2563eb; } .nav-item.backfill:hover { background: #eff6ff; }
+        .nav-item.edit { color: #16a34a; } .nav-item.edit:hover { background: #f0fdf4; }
+        .nav-item.cancel { color: #dc2626; } .nav-item.cancel:hover { background: #fef2f2; }
+        
+        /* อัปเกรด z-index ให้ Modal และเพิ่มระยะขอบบน */
+        #appModal { 
+            position: fixed !important; inset: 0 !important; background: #f8fafc !important; 
+            z-index: 999990 !important; display: none; overflow-y: auto !important;
+        }
+
+        /* หัวข้อด้านบนสุดให้โปร่งแสงแบบกระจก เพื่อไม่ให้ดูใหญ่ทึบตัน */
+        .app-header { 
+            display: flex !important; align-items: center !important; justify-content: space-between !important;
+            padding: 16px 20px !important; 
+            background: rgba(255, 255, 255, 0.85) !important; 
+            backdrop-filter: blur(12px) !important; -webkit-backdrop-filter: blur(12px) !important;
+            border-bottom: 1px solid rgba(0,0,0,0.03) !important; 
+            position: sticky !important; top: 0 !important; z-index: 1100 !important;
+        }
+        /* ตกแต่งปุ่มกลับ (ลูกศร) อัตโนมัติ */
+        .app-header button {
+            border-radius: 14px !important; border: 1px solid #f1f5f9 !important; background: #ffffff !important;
+            padding: 8px !important; box-shadow: 0 2px 8px rgba(0,0,0,0.02) !important; transition: background 0.2s;
+        }
+        .app-header button:active { background: #f1f5f9 !important; }
+
+        /* อัปเกรดช่อง Input และ Textarea */
+        input, textarea, select { 
+            width: 100%; padding: 14px 16px; border-radius: 16px; 
+            border: 1.5px solid #f1f5f9; font-size: 15px; outline: none; 
+            background-color: #f8fafc; color: #334155; transition: all 0.2s ease;
+        }
+        input:focus, textarea:focus { 
+            border-color: #fdba74; background: #ffffff; 
+            box-shadow: 0 0 0 4px rgba(234, 88, 12, 0.05);
+        }
+        
+        #osda-app-wrapper .input-with-icon {
+            padding-left: 44px !important;
+        }
+
+        /* อัปเกรดปุ่มยืนยันบันทึกข้อมูล */
+        .btn-submit { 
+            background: linear-gradient(135deg, #f97316, #ea580c); 
+            color: white; width: 100%; font-weight: 800; padding: 16px; 
+            border-radius: 18px; border: none; cursor: pointer; margin-top: 10px; 
+            box-shadow: 0 6px 20px -4px rgba(234, 88, 12, 0.4);
+            transition: all 0.2s ease;
+        }
+        .btn-submit:active { transform: scale(0.97); box-shadow: 0 2px 10px -2px rgba(234, 88, 12, 0.3); }
+        
+        .dropdown-list { position: absolute; width: 100%; max-height: 160px; overflow-y: auto; background: white; border: 1px solid #e2e8f0; border-radius: 12px; z-index: 50; display: none; }
+        .dropdown-item { padding: 12px; cursor: pointer; font-size: 14px; border-bottom: 1px solid #f8fafc; }
+        
+        /* อัปเกรดการ์ดแสดงรายการ (List Card) */
+        .doc-card { 
+            background: white; border-radius: 20px; padding: 18px; margin-bottom: 14px; 
+            border: 1px solid #ffffff; border-left: 5px solid var(--kmitl-orange); 
+            box-shadow: 0 4px 15px -3px rgba(0,0,0,0.03); transition: all 0.2s ease;
+        }
+        .doc-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px -4px rgba(0,0,0,0.05); }
+        
+        input:disabled { background-color: #f1f5f9; color: #64748b; cursor: not-allowed; border-color: transparent; font-weight: 600; }
+
+        /* จัดระเบียบกล่องแบบฟอร์มอัตโนมัติ */
+        #docForm {
+            box-shadow: 0 10px 30px -5px rgba(0,0,0,0.04) !important;
+            border: 1px solid #ffffff !important;
+            border-radius: 28px !important;
+            padding: 24px !important;
+            background: white !important;
+        }
+
+        /* จัดระเบียบกล่องปฏิทินอัตโนมัติ */
+        #listSection > div:first-child {
+            box-shadow: 0 10px 30px -5px rgba(0,0,0,0.04) !important;
+            border: 1px solid #ffffff !important;
+            border-radius: 28px !important;
+            padding: 24px !important;
+        }
+
+        /* จัดระเบียบหัวข้อ (Labels) ให้เล็กและกะทัดรัดลงเหมือนแอปใหม่ๆ */
+        .text-xs.font-bold.text-slate-400.mb-1 {
+            font-size: 11.5px !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.05em !important;
+            margin-bottom: 8px !important;
+            margin-left: 6px !important;
+            color: #94a3b8 !important;
+        }
+        
+        /* จัดระเบียบช่องเลขที่รันอัตโนมัติให้โดดเด่น */
+        #seqDisplay {
+            background-color: #fff7ed !important;
+            border-color: #fed7aa !important;
+            font-size: 24px !important;
+            padding: 16px !important;
+            border-radius: 20px !important;
+            box-shadow: inset 0 2px 4px rgba(234, 88, 12, 0.05) !important;
+        }
+    </style>
+</head>
+<body>
+
+<div id="osda-app-wrapper">
+
+    <div id="main-app">
+        <div id="sidebarOverlay" onclick="toggleSidebar()"></div>
+        <div id="sidebar">
+            <div class="flex flex-col items-center mb-8 pt-4 border-bottom pb-6 border-slate-50">
+                <div class="w-14 h-14 bg-orange-500 rounded-2xl flex items-center justify-center text-white mb-3 shadow-lg">
+                    <i data-lucide="layout-grid" class="w-8 h-8"></i>
+                </div>
+                
+                <div class="logo-text-osda logo-sidebar">OSDA</div>
+                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest -mt-1">Menu Navigation</div>
+            </div>
+             
+            <nav class="flex-1 flex flex-col">
+                <button onclick="goHome()" class="nav-item home"><i data-lucide="home"></i> กลับหน้าหลัก</button>
+                <div class="text-[11px] font-bold text-slate-300 px-4 mb-3 uppercase tracking-widest text-center">รายการจัดการ</div>
+                <button onclick="switchModule('new')" class="nav-item new"><i data-lucide="plus-circle"></i> บันทึกใหม่</button>
+                <button onclick="switchModule('backfill')" class="nav-item backfill"><i data-lucide="history"></i> ย้อนหลัง</button>
+                <button onclick="switchModule('edit')" class="nav-item edit"><i data-lucide="pencil"></i> แก้ไขข้อมูล</button>
+                <button onclick="switchModule('cancel')" class="nav-item cancel"><i data-lucide="trash-2"></i> ยกเลิกรายการ</button>
+                
+                <div class="border-t border-slate-100 my-2"></div>
+                <button onclick="exportCurrentMonthToExcel()" class="nav-item text-green-600"><i data-lucide="download"></i> ส่งออก Excel</button>
+            </nav>
+        </div>
+
+        <div id="hubPage" class="hub-container">
+            
+            <div class="hub-header-box">
+                <div class="logo-text-osda" style="font-size: 42px !important; line-height: 1 !important; margin: 0 0 5px 0 !important; padding: 0 !important; letter-spacing: -1px !important;">OSDA</div>
+            
+                <div class="text-2xl font-black text-slate-800 tracking-tight" style="margin: 0 0 5px 0 !important; padding: 0 !important; line-height: 1.2 !important;">DOCS SYSTEM</div>
+                <div class="text-slate-400 text-sm" style="margin: 0 0 12px 0 !important; padding: 0 !important; line-height: 1.5 !important;">เลือกรายการที่ต้องการดำเนินการ</div>
+            </div>
+
+            <div class="hub-grid z-10">
+                <div class="hub-card" onclick="openModule('new')">
+                    <div class="w-12 h-12 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center"><i data-lucide="plus-circle"></i></div>
+                    <div class="font-bold text-slate-700">บันทึกใหม่</div>
+                </div>
+                <div class="hub-card" onclick="openModule('backfill')">
+                    <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center"><i data-lucide="history"></i></div>
+                    <div class="font-bold text-slate-700">ย้อนหลัง</div>
+                </div>
+                <div class="hub-card" onclick="openModule('edit')">
+                    <div class="w-12 h-12 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center"><i data-lucide="pencil"></i></div>
+                    <div class="font-bold text-slate-700">แก้ไขข้อมูล</div>
+                </div>
+                <div class="hub-card" onclick="openModule('cancel')">
+                    <div class="w-12 h-12 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center"><i data-lucide="trash-2"></i></div>
+                    <div class="font-bold text-slate-700">ยกเลิกรายการ</div>
+                </div>
+                <div class="hub-card" onclick="exportCurrentMonthToExcel()">
+                    <div class="w-12 h-12 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center"><i data-lucide="download"></i></div>
+                    <div class="font-bold text-slate-700 text-center">ส่งออก Excel<br><span class="text-[10px] font-normal text-slate-400">ประจำเดือนปัจจุบัน</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="appModal">
+            <header class="app-header">
+                <button onclick="toggleSidebar()" class="p-2 hover:bg-slate-100 bg-white rounded-full border border-slate-200 cursor-pointer shadow-sm">
+                    <i data-lucide="menu" class="w-6 h-6 text-slate-600"></i>
+                </button>
+                <div id="moduleTitle" class="font-bold text-slate-800 text-lg uppercase">TITLE</div>
+                <div class="w-10"></div>
+            </header>
+
+            <div class="p-5 max-w-[500px] mx-auto">
+                <div id="formSection" style="display:none;">
+                    <form id="docForm" class="space-y-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                        <input type="hidden" id="editId">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="relative"><div class="text-xs font-bold text-slate-400 mb-1">จาก (ผู้จัดทำ)</div><input type="text" id="fromWho" required placeholder="พิมพ์ชื่อผู้จัดทำ..." autocomplete="off"></div>
+                            <div class="relative"><div class="text-xs font-bold text-slate-400 mb-1">ถึง (ผู้รับ)</div><input type="text" id="toWho" required placeholder="พิมพ์ชื่อผู้รับ..." autocomplete="off"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="relative"><div class="text-xs font-bold text-slate-400 mb-1">หน่วยรับ</div><input type="text" id="department" placeholder="เช่น พัสดุ, คลัง, OSDA" autocomplete="off"></div>
+                            <div class="relative"><div class="text-xs font-bold text-slate-400 mb-1">เลขที่ (ถ้ามี)</div><input type="text" id="docNumber" placeholder="..." autocomplete="off"></div>
+                        </div>
+                        <div><div class="text-xs font-bold text-slate-400 mb-1">ชื่อเรื่อง</div><input type="text" id="subject" required placeholder="พิมพ์หัวข้อเอกสาร..."></div>
+                        <div><div class="text-xs font-bold text-slate-400 mb-1">รายละเอียด</div><textarea id="action" rows="2" placeholder="ระบุรายละเอียดเพิ่มเติม..."></textarea></div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><div class="text-xs font-bold text-slate-400 mb-1">ลงวันที่</div><input type="date" id="dateInput" required onchange="calculateSeq()"></div>
+                            <div><div class="text-xs font-bold text-slate-400 mb-1">เวลาบันทึก</div><input type="text" id="timeInput" disabled class="bg-slate-50 text-slate-500"></div>
+                        </div>
+                        <div><div class="text-xs font-bold text-slate-400 mb-1">เลขลำดับเอกสาร</div><input type="text" id="seqDisplay" disabled class="text-center font-mono font-bold text-orange-600 bg-orange-50/50 rounded-xl border-orange-100"></div>
+                        <button type="submit" class="btn-submit">ยืนยันและบันทึกข้อมูล</button>
+                    </form>
+                </div>
+
+                <div id="listSection" style="display:none;">
+                    <div class="bg-white p-4 rounded-2xl border border-slate-100 mb-6 shadow-sm">
+                        <div class="flex justify-between items-center mb-4">
+                            <button onclick="changeMonth(-1)" class="bg-transparent border-none p-1 hover:bg-slate-50 rounded-lg"><i data-lucide="chevron-left"></i></button>
+                            <div id="calendarMonth" class="font-bold text-slate-700"></div>
+                            <button onclick="changeMonth(1)" class="bg-transparent border-none p-1 hover:bg-slate-50 rounded-lg"><i data-lucide="chevron-right"></i></button>
+                        </div>
+                        <div id="calendarDays" class="grid grid-cols-7 gap-1 text-center text-xs text-slate-400"></div>
+                    </div>
+                    <div id="dataList" class="space-y-3 pb-10"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div> 
+    
+    <script>
+        // 🛡️ ยามรักษาความปลอดภัย: ถ้าไม่มีบัตรผ่าน ให้เตะกลับไปหน้า Login
+        if (sessionStorage.getItem('osda_auth') !== 'true') {
+            window.location.replace('index.html'); 
+        }
+
+        localforage.config({ name: 'OSDA_STORAGE' });
+        let db = JSON.parse(localStorage.getItem('kmitl_rt_db') || '[]');
+        let currentMode = ''; 
+        let viewDate = new Date();
+        let selectedDateStr = new Date().toISOString().split('T')[0];
+
+        function toggleSidebar() {
+            const sb = document.getElementById('sidebar');
+            const ov = document.getElementById('sidebarOverlay');
+            if(sb) sb.classList.toggle('open');
+            if(ov) ov.style.display = sb.classList.contains('open') ? 'block' : 'none';
+        }
+
+        function goHome() { 
+            toggleSidebar(); 
+            document.getElementById('appModal').style.display = 'none'; 
+        }
+        
+        function switchModule(m) { 
+            toggleSidebar(); 
+            openModule(m); 
+        }
+
+        function openModule(mode) {
+            currentMode = mode;
+            const dateInput = document.getElementById('dateInput');
+            const appModal = document.getElementById('appModal');
+            const formSection = document.getElementById('formSection');
+            const listSection = document.getElementById('listSection');
+            const moduleTitle = document.getElementById('moduleTitle');
+            
+            if(appModal) appModal.style.display = 'block';
+            if(formSection) formSection.style.display = (mode === 'new' || mode === 'backfill') ? 'block' : 'none';
+            if(listSection) listSection.style.display = (mode === 'edit' || mode === 'cancel') ? 'block' : 'none';
+            if(moduleTitle) moduleTitle.innerText = (mode === 'new' ? 'บันทึกใหม่' : mode === 'backfill' ? 'ย้อนหลัง' : mode === 'edit' ? 'แก้ไขข้อมูล' : 'ยกเลิกรายการ');
+            
+            if(mode === 'new') {
+                resetForm();
+                if(dateInput) {
+                    dateInput.value = new Date().toISOString().split('T')[0];
+                    dateInput.disabled = true; 
+                }
+            } else if(mode === 'backfill') {
+                resetForm();
+                if(dateInput) dateInput.disabled = false; 
+            }
+
+            if(mode === 'edit' || mode === 'cancel') { renderCalendar(); showList(selectedDateStr); }
+            if(window.lucide) lucide.createIcons();
+            calculateSeq();
+        }
+
+        function calculateSeq() {
+            try {
+                const editIdEl = document.getElementById('editId');
+                if(editIdEl && editIdEl.value) return;
+                
+                const dateInputEl = document.getElementById('dateInput');
+                if(!dateInputEl || !dateInputEl.value) return;
+                
+                const target = dateInputEl.value;
+                const sameDay = db.filter(r => r.date === target).sort((a,b) => b.sequence.localeCompare(a.sequence, undefined, {numeric: true}));
+                const seqDisplayEl = document.getElementById('seqDisplay');
+                
+                if(!seqDisplayEl) return;
+
+                if (currentMode === 'new') {
+                    const sortedAll = [...db].sort((a,b) => a.sequence.localeCompare(b.sequence, undefined, {numeric: true}));
+                    let nextBase = 1;
+                    if (sortedAll.length) { 
+                        const lastBase = sortedAll[sortedAll.length-1].sequence.split('.')[0];
+                        nextBase = parseInt(lastBase) + 1; 
+                    }
+                    seqDisplayEl.value = String(nextBase).padStart(4, '0');
+                } else {
+                    if (sameDay.length) {
+                        let last = sameDay[0].sequence;
+                        let base = last.includes('.') ? last.substring(0, last.lastIndexOf('.')) : last;
+                        let sub = last.includes('.') ? parseInt(last.split('.').pop()) + 1 : 1;
+                        seqDisplayEl.value = `${base}.${String(sub).padStart(2, '0')}`;
+                    } else { 
+                        const sortedAll = [...db].sort((a,b) => a.sequence.localeCompare(b.sequence, undefined, {numeric: true}));
+                        let lastBase = "0001";
+                        if(sortedAll.length) lastBase = sortedAll[sortedAll.length-1].sequence.split('.')[0];
+                        seqDisplayEl.value = `${lastBase}.01`;
+                    }
+                }
+            } catch (err) {}
+        }
+
+        setInterval(() => { 
+            try {
+                const editIdEl = document.getElementById('editId');
+                const timeInputEl = document.getElementById('timeInput');
+                if(editIdEl !== null && timeInputEl !== null) {
+                    if (editIdEl.value === "") {
+                        timeInputEl.value = new Date().toLocaleTimeString('th-TH', { hour12: false }) + " น."; 
+                    }
+                }
+            } catch (e) {}
+        }, 1000);
+
+        function resetForm() {
+            try {
+                const docForm = document.getElementById('docForm');
+                const editId = document.getElementById('editId');
+                const dateInput = document.getElementById('dateInput');
+                const deptInput = document.getElementById('department');
+                const docNumInput = document.getElementById('docNumber');
+                
+                if(docForm) docForm.reset();
+                if(editId) editId.value = '';
+                if(deptInput) deptInput.value = '';
+                if(docNumInput) docNumInput.value = '';
+                if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+            } catch(e) {}
+        }
+
+        function renderCalendar() {
+            try {
+                const year = viewDate.getFullYear();
+                const month = viewDate.getMonth();
+                const monthNames = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+                
+                const calendarMonthEl = document.getElementById('calendarMonth');
+                if(calendarMonthEl) {
+                    calendarMonthEl.innerText = `${monthNames[month]} ${year + 543}`;
+                }
+
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const firstDay = new Date(year, month, 1).getDay();
+                const cal = document.getElementById('calendarDays');
+                
+                if(cal) {
+                    cal.innerHTML = '<div>อา</div><div>จ</div><div>อ</div><div>พ</div><div>พฤ</div><div>ศ</div><div>ส</div>';
+                    for(let i=0; i<firstDay; i++) cal.innerHTML += '<div></div>';
+                    for(let i=1; i<=daysInMonth; i++) {
+                        const dStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+                        const hasData = db.some(r => r.date === dStr);
+                        cal.innerHTML += `<div onclick="selectDate('${dStr}')" class="p-2 cursor-pointer rounded-xl ${dStr===selectedDateStr?'bg-orange-500 text-white font-bold':'hover:bg-slate-100'}">${i}${hasData && dStr!==selectedDateStr?'<div class="w-1.5 h-1.5 bg-orange-400 mx-auto rounded-full mt-1"></div>':''}</div>`;
+                    }
+                }
+            } catch(e) {}
+        }
+        function selectDate(d) { selectedDateStr = d; renderCalendar(); showList(d); }
+        
+        function showList(d) {
+            try {
+                const container = document.getElementById('dataList');
+                if(!container) return;
+                
+                const filtered = db.filter(r => r.date === d).sort((a,b) => b.sequence.localeCompare(a.sequence, undefined, {numeric: true}));
+                container.innerHTML = filtered.length ? '' : '<div class="text-center py-10 text-slate-300">ไม่มีข้อมูล</div>';
+                filtered.forEach(r => {
+                    const card = document.createElement('div'); card.className = 'doc-card';
+                    card.innerHTML = `<div class="flex justify-between items-start mb-2"><div class="text-xs font-mono font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded">${r.sequence}</div><button onclick="${currentMode==='edit'?`editItem('${r.id}')`:`deleteItem('${r.id}')`}" class="${currentMode==='edit'?'bg-orange-500':'bg-red-500'} text-white px-3 py-1 rounded-lg text-xs border-none">${currentMode==='edit'?'แก้ไข':'ลบ'}</button></div><div class="text-sm font-bold text-slate-700">${r.subject}</div><div class="text-[10px] text-slate-400 mt-2 flex justify-between italic bg-slate-50 p-1 rounded"><div>${r.time}</div><div>${r.from_who} → ${r.to_who} ${r.department ? `(${r.department})` : ''}</div></div>`;
+                    container.appendChild(card);
+                });
+                if(window.lucide) lucide.createIcons();
+            } catch (e) {}
+        }
+
+        window.editItem = (id) => {
+            try {
+                const r = db.find(x => x.id === id);
+                if(!r) return;
+                const formSection = document.getElementById('formSection');
+                const listSection = document.getElementById('listSection');
+                if(formSection) formSection.style.display = 'block';
+                if(listSection) listSection.style.display = 'none';
+                
+                const editIdEl = document.getElementById('editId');
+                const fromWhoEl = document.getElementById('fromWho');
+                const toWhoEl = document.getElementById('toWho');
+                const deptEl = document.getElementById('department');
+                const docNumEl = document.getElementById('docNumber');
+                const subjectEl = document.getElementById('subject');
+                const actionEl = document.getElementById('action');
+                const dateInputEl = document.getElementById('dateInput');
+                const timeInputEl = document.getElementById('timeInput');
+                const seqDisplayEl = document.getElementById('seqDisplay');
+
+                if(editIdEl) editIdEl.value = r.id;
+                if(fromWhoEl) fromWhoEl.value = r.from_who || '';
+                if(toWhoEl) toWhoEl.value = r.toWho || '';
+                if(deptEl) deptEl.value = r.department || '';
+                if(docNumEl) docNumEl.value = r.doc_number || '';
+                if(subjectEl) subjectEl.value = r.subject || '';
+                if(actionEl) actionEl.value = r.action || '';
+                if(dateInputEl) {
+                    dateInputEl.value = r.date;
+                    dateInputEl.disabled = true; 
+                }
+                if(timeInputEl) timeInputEl.value = r.time;
+                if(seqDisplayEl) seqDisplayEl.value = r.sequence;
+                
+                window.scrollTo(0,0);
+            } catch (e) {}
+        };
+        
+        window.deleteItem = (id) => { 
+            if(confirm('ยืนยันการลบ?')) { 
+                db = db.filter(x => x.id !== id); 
+                localStorage.setItem('kmitl_rt_db', JSON.stringify(db)); 
+                showList(selectedDateStr); 
+                renderCalendar(); 
+            } 
+        };
+
+        // 🟢🟢 จุดที่ผ่าตัดแก้ไขให้ส่งข้อมูลขึ้น Google Sheets 🟢🟢
+        document.addEventListener('DOMContentLoaded', () => {
+            if(window.lucide) lucide.createIcons();
+
+            const docForm = document.getElementById('docForm');
+            if (docForm) {
+                // เปลี่ยนฟังก์ชันให้เป็น async เพื่อใช้คู่กับ fetch
+                docForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    
+                    // URL จาก Google Apps Script ที่นายให้มาเป๊ะๆ
+                    const scriptURL = 'https://script.google.com/macros/s/AKfycbwaprBpMc7AxmfGxNIY7E4IWZEkhV-k_t3beYyo0FfSmrNY2IB7xhwdwzNu_SrlGBLZ/exec';
+
+                    try {
+                        const editIdEl = document.getElementById('editId');
+                        const fromWhoEl = document.getElementById('fromWho');
+                        const toWhoEl = document.getElementById('toWho');
+                        const deptEl = document.getElementById('department');
+                        const docNumEl = document.getElementById('docNumber');
+                        const subjectEl = document.getElementById('subject');
+                        const actionEl = document.getElementById('action');
+                        const dateInputEl = document.getElementById('dateInput');
+                        const timeInputEl = document.getElementById('timeInput');
+                        const seqDisplayEl = document.getElementById('seqDisplay');
+
+                        // จัดเตรียมข้อมูล
+                        const id = (editIdEl && editIdEl.value) ? editIdEl.value : Date.now().toString();
+                        const record = { 
+                            id: id, 
+                            from_who: fromWhoEl ? fromWhoEl.value : '', 
+                            to_who: toWhoEl ? toWhoEl.value : '', 
+                            department: deptEl ? deptEl.value : '',
+                            doc_number: docNumEl ? docNumEl.value : '',
+                            subject: subjectEl ? subjectEl.value : '', 
+                            action: actionEl ? actionEl.value : '', 
+                            date: dateInputEl ? dateInputEl.value : '', 
+                            time: timeInputEl ? timeInputEl.value : '', 
+                            sequence: seqDisplayEl ? seqDisplayEl.value : '' 
+                        };
+                        
+                        // แสดงข้อความกำลังโหลดให้ User ทราบ
+                        Swal.fire({ title: 'กำลังบันทึกขึ้น Cloud...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                        // ยิงข้อมูลเข้า Google Sheets แบบเบื้องหลัง
+                        await fetch(scriptURL, { 
+                            method: 'POST', 
+                            mode: 'no-cors',
+                            body: JSON.stringify(record),
+                            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                        });
+
+                        // บันทึกสำรองลง LocalStorage เพื่อให้หน้ารายการปฏิทินแสดงผลได้ทันที
+                        if(editIdEl && editIdEl.value) { 
+                            const idx = db.findIndex(x => String(x.id) === String(id)); 
+                            if(idx !== -1) db[idx] = record; 
+                        } else { 
+                            db.push(record); 
+                        }
+                        localStorage.setItem('kmitl_rt_db', JSON.stringify(db));
+
+                        // แจ้งเตือนเมื่อสำเร็จ และกลับหน้าหลัก
+                        Swal.fire({ icon: 'success', title: 'ออนไลน์สำเร็จ!', text: 'บันทึกข้อมูลเข้า Google Sheets เรียบร้อย', timer: 2000 });
+                        goHome();
+                        
+                    } catch (err) {
+                        console.error('Submit Error: ', err);
+                        Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้' });
+                    }
+                });
+            }
+        });
+
+        function changeMonth(v) { viewDate.setMonth(viewDate.getMonth() + v); renderCalendar(); }
+
+        async function exportCurrentMonthToExcel() {
+            try {
+                if(typeof ExcelJS === 'undefined' || typeof saveAs === 'undefined') {
+                    alert('ระบบกำลังโหลดตัวจัดการ Excel กรุณารอสักครู่แล้วลองกดใหม่อีกครั้ง');
+                    return;
+                }
+
+                const year = viewDate.getFullYear();
+                const month = viewDate.getMonth();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const monthNames = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+
+                const wb = new ExcelJS.Workbook();
+                wb.creator = 'OSDA System';
+                wb.created = new Date();
+
+                let hasAnyData = false;
+
+                // 1. หาเลขสุดท้ายของเดือนก่อนหน้า (ตั้งต้นให้แผ่นงานแรก)
+                let prevLastSequence = "";
+                const firstDayOfMonthStr = `${year}-${String(month+1).padStart(2,'0')}-01`;
+                const pastRecords = db.filter(r => r.date < firstDayOfMonthStr).sort((a,b) => {
+                    if(a.date === b.date) return a.sequence.localeCompare(b.sequence, undefined, {numeric: true});
+                    return a.date.localeCompare(b.date);
+                });
+                if(pastRecords.length > 0) {
+                    prevLastSequence = pastRecords[pastRecords.length - 1].sequence;
+                }
+
+                // ตัวแปรสำหรับเก็บการอ้างอิงสูตรข้าม Sheet
+                let lastSheetName = null;
+                let lastCellRef = null;
+                let currentTrackingSequence = prevLastSequence; 
+
+                // ฟังก์ชันวาดเส้นตารางแบบบาง
+                const applyBorders = (cell) => {
+                    cell.border = {
+                        top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}
+                    };
+                };
+
+                // วนลูปสร้าง Sheet ทีละวัน ตั้งแต่ 1 ถึงวันสิ้นเดือน
+                for(let i=1; i<=daysInMonth; i++) {
+                    const dStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+                    const sheetName = String(i).padStart(2,'0'); 
+                    const ws = wb.addWorksheet(sheetName);
+                    
+                    // ตั้งค่าหน้ากระดาษ (Landscape แบบพอดีหน้า A4)
+                    ws.pageSetup = { 
+                        paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, 
+                        margins: { left: 0.25, right: 0.25, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 } 
+                    };
+
+                    // กำหนดความกว้างคอลัมน์ A-N
+                    ws.columns = [
+                        { width: 10 },  // A: ลำดับที่ทั่วไป
+                        { width: 12 },  // B: เลขลำดับหนังสือรับ
+                        { width: 15 },  // C: เลขลำดับหนังสือส่ง
+                        { width: 10 },  // D: เลขที่
+                        { width: 12 },  // E: ลงวันที่
+                        { width: 12 },  // F: วันที่ดำเนินการ
+                        { width: 15 },  // G: จาก
+                        { width: 15 },  // H: ถึง
+                        { width: 12 },  // I: หน่วยรับ
+                        { width: 45 },  // J: เรื่อง
+                        { width: 12 },  // K: การปฏิบัติ
+                        { width: 12 },  // L: หมายเหตุ
+                        { width: 15 },  // M: ใส่สูตรเลขสุดท้าย
+                        { width: 25 }   // N: ข้อความ
+                    ];
+
+                    // ----------------------------------------------------
+                    // แถวที่ 1 : ส่วนหัว และสูตรลิงก์วันก่อนหน้า (ไม่มีเส้นกรอบตาราง)
+                    // ----------------------------------------------------
+                    const row1 = ws.getRow(1);
+                    row1.getCell(1).value = dStr; 
+                    row1.getCell(1).font = { name: 'TH SarabunPSK', size: 16 };
+                    
+                    const cellM1 = row1.getCell(13);
+
+                    if (lastSheetName && lastCellRef) {
+                        cellM1.value = { formula: `='${lastSheetName}'!${lastCellRef}`, result: currentTrackingSequence };
+                    } else {
+                        cellM1.value = currentTrackingSequence; 
+                    }
+                    cellM1.numFmt = '@'; 
+                    cellM1.font = { name: 'TH SarabunPSK', size: 16 };
+                    cellM1.alignment = { horizontal: 'right' };
+
+                    const cellN1 = row1.getCell(14);
+                    cellN1.value = 'เลขสุดท้ายวันทำการก่อนหน้า';
+                    cellN1.font = { name: 'TH SarabunPSK', size: 16 };
+
+                    // ----------------------------------------------------
+                    // แถวที่ 2 : หัวตาราง
+                    // ----------------------------------------------------
+                    const row2 = ws.getRow(2);
+                    row2.height = 35; 
+                    const headers = ['ลำดับที่\nทั่วไป', 'เลขลำดับ\nหนังสือรับ', 'เลขลำดับ\nหนังสือส่ง', 'เลขที่', 'ลงวันที่', 'วันที่\nดำเนินการ', 'จาก', 'ถึง', 'หน่วยรับ', 'เรื่อง', 'การปฏิบัติ', 'หมายเหตุ'];
+                    
+                    headers.forEach((headerText, index) => {
+                        const cell = row2.getCell(index + 1);
+                        cell.value = headerText;
+                        cell.font = { name: 'TH SarabunPSK', size: 16, bold: true }; 
+                        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } }; 
+                        applyBorders(cell);
+                    });
+
+                    // ----------------------------------------------------
+                    // แถวที่ 3 เป็นต้นไป : ข้อมูล
+                    // ----------------------------------------------------
+                    const dayData = db.filter(r => r.date === dStr).sort((a,b) => a.sequence.localeCompare(b.sequence, undefined, {numeric: true}));
+                    
+                    let dataToRender = dayData.length > 0 ? dayData : [ { isEmpty: true } ];
+                    if (dayData.length > 0) hasAnyData = true;
+
+                    let lastDataRowIdx = 2;
+
+                    dataToRender.forEach((item, index) => {
+                        const rIdx = 3 + index;
+                        const dataRow = ws.getRow(rIdx);
+                        dataRow.height = 25; 
+
+                        dataRow.getCell(1).value = index + 1; 
+                        dataRow.getCell(2).value = ''; 
+                        
+                        if (!item.isEmpty) {
+                            const seqCell = dataRow.getCell(3);
+                            seqCell.value = item.sequence;
+                            seqCell.numFmt = '@'; 
+                            
+                            dataRow.getCell(4).value = item.doc_number || ''; 
+                            dataRow.getCell(5).value = item.date; 
+                            dataRow.getCell(6).value = item.date; 
+                            dataRow.getCell(7).value = item.from_who; 
+                            dataRow.getCell(8).value = item.to_who; 
+                            dataRow.getCell(9).value = item.department || ''; 
+                            dataRow.getCell(10).value = item.subject + (item.action ? ` / ${item.action}` : ''); 
+                            dataRow.getCell(11).value = ''; 
+                            dataRow.getCell(12).value = ''; 
+
+                            currentTrackingSequence = item.sequence; 
+                        } else {
+                            dataRow.getCell(3).value = '';
+                            dataRow.getCell(3).numFmt = '@';
+                        }
+
+                        for(let c=1; c<=12; c++) {
+                            const cell = dataRow.getCell(c);
+                            cell.font = { name: 'TH SarabunPSK', size: 16 };
+                            applyBorders(cell);
+                            
+                            if([1, 2, 3, 4, 5, 6, 9].includes(c)) {
+                                cell.alignment = { vertical: 'top', horizontal: 'center', wrapText: true };
+                            } else {
+                                cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+                            }
+                        }
+                        lastDataRowIdx = rIdx;
+                    });
+
+                    lastSheetName = sheetName;
+                    if (dayData.length > 0) {
+                        lastCellRef = `C${lastDataRowIdx}`; 
+                    } else {
+                        lastCellRef = `M1`; 
+                    }
+                }
+
+                if(!hasAnyData) {
+                    alert(`ไม่มีข้อมูลในเดือน ${monthNames[month]} ${year + 543} สำหรับส่งออก`);
+                    return;
+                }
+
+                const today = new Date();
+                if(year === today.getFullYear() && month === today.getMonth()) {
+                    wb.views = [ { activeTab: today.getDate() - 1 } ];
+                }
+
+                const buffer = await wb.xlsx.writeBuffer();
+                const fileName = `ออก ${year+543}${String(month+1).padStart(2,'0')} ${monthNames[month]}.xlsx`;
+                
+                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                saveAs(blob, fileName);
+
+            } catch (err) {
+                console.error('Excel Export Error: ', err);
+                alert('เกิดข้อผิดพลาดในการสร้างไฟล์ Excel');
+            }
+        }
+    </script>
+</body>
+</html>

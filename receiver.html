@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OSDA - Front Desk Pro</title>
+    
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --kmitl: #ea580c; --dark: #1e293b; }
+        body { font-family: 'Sarabun', sans-serif; background-color: #f0f4f8; margin: 0; padding: 20px 0; }
+        .app-container { max-width: 900px; margin: 0 auto; background-color: #ffffff; min-height: 90vh; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); overflow: hidden; position: relative; }
+        .input-box { width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none; transition: 0.2s; color: #334155; }
+        .input-box:focus:not([readonly]) { border-color: var(--kmitl); box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.1); }
+        .input-box[readonly] { background-color: #f1f5f9; cursor: not-allowed; color: #64748b; font-weight: bold; border-color: #e2e8f0; }
+        .form-label { font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 4px; display: block; }
+        
+        .page-section { display: none; animation: fadeIn 0.3s ease; }
+        .page-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .table-row-hover { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); border-left: 4px solid transparent; }
+        .row-normal { background-color: #f8fafc; }
+        .row-normal:hover { background-color: #f0fdf4; border-left: 4px solid #22c55e; transform: scale(1.005); box-shadow: 0 4px 15px rgba(34, 197, 94, 0.08); z-index: 10; position: relative; }
+        .row-backfill { background-color: #fffbeb; }
+        .row-backfill:hover { background-color: #fef3c7; border-left: 4px solid #eab308; transform: scale(1.005); box-shadow: 0 4px 15px rgba(234, 179, 8, 0.08); z-index: 10; position: relative; }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-slate-100">
+
+<div class="app-container">
+    
+    <div id="pageHub" class="page-section active">
+        <div class="p-6 sm:p-8 border-b border-slate-100 bg-white">
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-8">
+                <div>
+                    <h1 class="text-3xl font-black text-slate-800 leading-none">
+                        OSDA <span class="text-orange-600">FRONT</span>
+                    </h1>
+                    <p class="text-xs font-bold text-slate-400 mt-1">ระบบลงทะเบียนหนังสือรับ</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button onclick="openForm('new')" class="bg-emerald-600 hover:bg-emerald-700 text-white p-6 rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-emerald-600/30 transition-all transform hover:-translate-y-1">
+                    <i data-lucide="check-circle" class="w-8 h-8"></i>
+                    <span class="text-xl font-bold">รับหนังสือปกติ</span>
+                </button>
+                <button onclick="openForm('backfill')" class="bg-amber-500 hover:bg-amber-600 text-white p-6 rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-amber-500/30 transition-all transform hover:-translate-y-1">
+                    <i data-lucide="history" class="w-8 h-8"></i>
+                    <span class="text-xl font-bold">รับหนังสือย้อนหลัง</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-slate-50 p-6 sm:p-8 min-h-[500px]">
+            <div class="flex flex-col sm:flex-row justify-between items-end border-b-2 border-slate-800 pb-3 mb-6 gap-4">
+                <h3 class="text-sm font-black text-slate-500 tracking-wider uppercase flex items-center gap-2">
+                    <i data-lucide="database" class="w-4 h-4"></i> ทะเบียนรับทั้งหมด
+                </h3>
+                <div class="flex gap-2 w-full sm:w-auto">
+                    <div class="relative w-full sm:w-80">
+                        <input type="text" id="searchInput" oninput="handleSearch()" placeholder="ค้นหา เรื่อง, ทะเบียน, จาก, ถึง..." class="w-full pl-9 pr-4 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none shadow-sm transition-all">
+                        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-200">
+                <div class="min-w-[800px]">
+                    <div class="bg-[#1e293b] text-white text-xs font-bold p-3 grid grid-cols-12 gap-4 items-center">
+                        <div class="col-span-2 text-center">ทะเบียน</div>
+                        <div class="col-span-4">รายละเอียดหนังสือ</div>
+                        <div class="col-span-2 text-center">สถานะ</div>
+                        <div class="col-span-2 text-center">เวลารับจริง</div>
+                        <div class="col-span-2 text-center">จัดการ</div>
+                    </div>
+                    <div id="recordList" class="flex flex-col divide-y divide-slate-100">
+                        </div>
+                </div>
+            </div>
+            
+            <div id="paginationControls" class="flex justify-between items-center mt-6">
+                <button onclick="changePage(-1)" id="btnPrev" class="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition shadow-sm">ก่อนหน้า</button>
+                <span id="pageInfo" class="text-xs font-bold text-slate-500 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm"></span>
+                <button onclick="changePage(1)" id="btnNext" class="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition shadow-sm">ถัดไป</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pageForm" class="page-section bg-white min-h-full pb-10">
+        <div class="flex items-center gap-4 p-6 border-b border-slate-100 sticky top-0 bg-white z-10 shadow-sm">
+            <button onclick="goHome()" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600 transition">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </button>
+            <h2 id="formTitle" class="font-bold text-xl text-slate-800">บันทึกรับหนังสือ</h2>
+            
+            <div class="ml-auto">
+                <div id="formStatusBadge" class="px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider border"></div>
+                <input type="hidden" id="f_status">
+            </div>
+        </div>
+
+        <form id="docForm" onsubmit="saveData(event)" class="p-6 sm:p-10 space-y-5 max-w-2xl mx-auto">
+            <input type="hidden" id="f_id">
+            
+            <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div class="mb-4 text-center">
+                    <label class="text-sm font-bold text-slate-600 block mb-2">เลขทะเบียนรับ (อัตโนมัติ)</label>
+                    <input type="text" id="f_seq" class="w-full text-center text-3xl font-black text-slate-800 bg-transparent border-b-2 border-slate-300 py-2 outline-none" readonly>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-500 block mb-1 text-center">วันที่บันทึก (System Date)</label>
+                        <input type="date" id="f_sysDate" class="w-full text-center text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-lg py-2 outline-none" readonly>
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-500 block mb-1 text-center">เวลาบันทึก (System Time)</label>
+                        <input type="time" step="1" id="f_sysTime" class="w-full text-center text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-lg py-2 outline-none" readonly>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-5 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                <div>
+                    <label class="form-label text-blue-700">ลงวันที่รับจริง</label>
+                    <input type="date" id="f_logDate" class="input-box font-bold" required onchange="calculateSequence()">
+                </div>
+                <div>
+                    <label class="form-label text-blue-700">เวลารับจริง</label>
+                    <input type="time" id="f_logTime" class="input-box font-bold" required>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-5 pt-2">
+                <div><label class="form-label">จากใคร</label><input type="text" id="f_sender" class="input-box" required></div>
+                <div><label class="form-label">ถึงใคร</label><input type="text" id="f_receiver" class="input-box" required></div>
+            </div>
+            
+            <div><label class="form-label">เรื่อง</label><input type="text" id="f_subject" class="input-box font-bold text-lg py-3" required></div>
+            <div><label class="form-label">หมายเหตุ / การปฏิบัติ</label><input type="text" id="f_remark" class="input-box" placeholder="(ถ้ามี)"></div>
+            
+            <div class="p-4 bg-slate-50 rounded-xl border border-dashed border-slate-300 mt-2 text-center">
+                <input type="file" id="f_fileInput" class="hidden" accept="image/*,.pdf">
+                <button type="button" onclick="document.getElementById('f_fileInput').click()" class="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-100 flex items-center gap-2 mx-auto">
+                    <i data-lucide="paperclip" class="w-4 h-4"></i> แนบไฟล์เอกสาร
+                </button>
+                <div id="f_fileStatus" class="text-xs text-orange-600 font-bold mt-3"></div>
+                <input type="hidden" id="f_fileData"> 
+            </div>
+            
+            <button type="submit" id="btnSubmit" class="w-full bg-slate-800 text-white font-bold py-4 rounded-xl shadow-md mt-4 text-lg hover:bg-slate-900 transition active:transform active:scale-95 flex justify-center items-center gap-2">
+                <i data-lucide="save" class="w-5 h-5"></i> บันทึกข้อมูล
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    // 🛡️ ยามรักษาความปลอดภัย: ถ้าไม่มีบัตรผ่าน ให้เตะกลับไปหน้า Login
+        if (sessionStorage.getItem('osda_auth') !== 'true') {
+            window.location.replace('index.html'); 
+        }
+    localforage.config({ name: 'OSDA_STORAGE' });
+    let db = JSON.parse(localStorage.getItem('OSDA_DB_PRO') || '[]');
+    let currentMode = 'hub'; 
+    let realTimeClock; 
+    let currentPage = 1;
+    const itemsPerPage = 6; 
+    let filteredRecords = []; 
+    
+
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+
+    window.onload = () => { handleSearch(); lucide.createIcons(); };
+
+    function formatThaiDateShort(dateStr) {
+        if (!dateStr || !dateStr.includes('-')) return dateStr || '-';
+        const [y, m, d] = dateStr.split('-');
+        return `${parseInt(d)}/${parseInt(m)}/${parseInt(y) + 543}`;
+    }
+
+    function goHome() {
+        clearInterval(realTimeClock); 
+        document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+        document.getElementById('pageHub').classList.add('active');
+        currentMode = 'hub';
+        handleSearch(); 
+    }
+
+    function openForm(mode) {
+        clearInterval(realTimeClock);
+        currentMode = mode;
+        
+        document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+        document.getElementById('pageForm').classList.add('active');
+        document.getElementById('docForm').reset();
+        document.getElementById('f_id').value = '';
+        document.getElementById('f_fileStatus').innerText = '';
+        document.getElementById('f_fileData').value = '';
+        
+        const badge = document.getElementById('formStatusBadge');
+        const logDateInput = document.getElementById('f_logDate');
+        const logTimeInput = document.getElementById('f_logTime');
+
+        if (mode === 'new') {
+            document.getElementById('formTitle').innerText = 'รับหนังสือปกติ';
+            document.getElementById('f_status').value = 'รับแล้ว';
+            badge.innerText = '🔵 รับปกติ';
+            badge.className = 'px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 border-emerald-200';
+            logDateInput.readOnly = true; 
+            logTimeInput.readOnly = true; 
+        } else if (mode === 'backfill') {
+            document.getElementById('formTitle').innerText = 'รับหนังสือย้อนหลัง';
+            document.getElementById('f_status').value = 'รับย้อนหลัง';
+            badge.innerText = '🟡 รับย้อนหลัง';
+            badge.className = 'px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-yellow-100 text-yellow-700 border-yellow-200';
+            logDateInput.readOnly = false; 
+            logTimeInput.readOnly = false; 
+        }
+        
+        const updateClock = () => {
+            const now = new Date();
+            document.getElementById('f_sysDate').value = now.toISOString().split('T')[0];
+            document.getElementById('f_sysTime').value = now.toTimeString().split(' ')[0]; 
+        };
+        updateClock();
+        realTimeClock = setInterval(updateClock, 1000);
+
+        const now = new Date();
+        if(mode !== 'edit') {
+            logDateInput.value = now.toISOString().split('T')[0]; 
+            logTimeInput.value = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        }
+        calculateSequence();
+        lucide.createIcons();
+    }
+
+    function calculateSequence() {
+        if (document.getElementById('f_id').value) return; 
+        const targetDate = document.getElementById('f_logDate').value;
+        if (!targetDate) return;
+
+        const allDbSorted = [...db].sort((a, b) => new Date(a.logDate) - new Date(b.logDate) || a.id - b.id);
+        let finalSeq = "";
+
+        if (currentMode === 'new') {
+            let maxBase = 0;
+            allDbSorted.forEach(r => {
+                if (!r.seq.includes('.') && !r.seq.includes('(')) {
+                    let num = parseInt(r.seq);
+                    if (num > maxBase) maxBase = num;
+                }
+            });
+            finalSeq = String(maxBase + 1).padStart(4, '0');
+        } else if (currentMode === 'backfill') {
+            const sameDayRecords = allDbSorted.filter(r => r.logDate === targetDate);
+            if (sameDayRecords.length > 0) {
+                const lastRecord = sameDayRecords[sameDayRecords.length - 1];
+                const baseStr = lastRecord.seq.split('.')[0]; 
+                const lastDec = lastRecord.seq.includes('.') ? parseInt(lastRecord.seq.split('.')[1]) : 0;
+                finalSeq = `${baseStr}.${String(lastDec + 1).padStart(2, '0')}`;
+            } else {
+                const prevRecords = allDbSorted.filter(r => new Date(r.logDate) < new Date(targetDate));
+                if (prevRecords.length > 0) {
+                    const lastPrevRecord = prevRecords[prevRecords.length - 1];
+                    const pureBase = lastPrevRecord.seq.split('.')[0].split('(')[0]; 
+                    const match = lastPrevRecord.seq.match(/\((\d+)\)/);
+                    let existingOffset = match ? parseInt(match[1]) : 0;
+                    const daysDiff = Math.round((new Date(targetDate) - new Date(lastPrevRecord.logDate)) / (86400000));
+                    finalSeq = `${pureBase}(${existingOffset + daysDiff}).01`;
+                } else {
+                    finalSeq = "0001(1).01"; 
+                }
+            }
+        }
+        document.getElementById('f_seq').value = finalSeq;
+    }
+
+    document.getElementById('f_fileInput').addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        document.getElementById('f_fileStatus').innerHTML = 'กำลังเตรียมไฟล์...';
+        try {
+            let processedFile = file;
+            if (file.type.startsWith('image/')) {
+                processedFile = await imageCompression(file, { maxSizeMB: 0.5, maxWidthOrHeight: 1920 });
+            }
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                document.getElementById('f_fileData').value = ev.target.result;
+                document.getElementById('f_fileStatus').innerText = `✅ แนบไฟล์สำเร็จ: ${file.name}`;
+            };
+            reader.readAsDataURL(processedFile);
+        } catch (err) { console.error(err); }
+    });
+
+    // --- ฟังก์ชันบันทึกข้อมูลที่คลีนและแก้บั๊กแล้ว 100% ---
+    // --- ฟังก์ชันบันทึกข้อมูลแบบไม้ตาย (Bypass CORS) ---
+// ตัวแปรเช็กว่าส่งฟอร์มแล้วหรือยัง
+    let submitted = false;
+
+  window.saveData = async (e) => {
+        // ดักจับไม่ให้เว็บโหลดหน้าใหม่
+        if (e) e.preventDefault(); 
+        
+        // 🟢 URL จาก Google Apps Script ของนาย (ผูกติด Google Sheet แล้ว)
+        const scriptURL = 'https://script.google.com/macros/s/AKfycby3aUteP6bhfFMUR8usEipUwJHzbS_qK7Hty-bw15gqhI2O6YFjP6IUbybNqWYmQPt34w/exec'; 
+        
+        Swal.fire({ title: 'กำลังบันทึกขึ้น Cloud...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+        const id = document.getElementById('f_id').value || Date.now();
+        const fileData = document.getElementById('f_fileData').value;
+        const hasFile = fileData ? true : false; // เช็คว่ามีการแนบไฟล์ไหม
+
+        const record = {
+            id: id,
+            seq: document.getElementById('f_seq').value,
+            sysDate: document.getElementById('f_sysDate').value,
+            sysTime: document.getElementById('f_sysTime').value,
+            logDate: document.getElementById('f_logDate').value,
+            logTime: document.getElementById('f_logTime').value,
+            sender: document.getElementById('f_sender').value,
+            receiver: document.getElementById('f_receiver').value,
+            subject: document.getElementById('f_subject').value,
+            remark: document.getElementById('f_remark').value,
+            status: document.getElementById('f_status').value,
+            hasFile: hasFile
+        };
+
+        try {
+            // 🚀 1. ยิงข้อมูลไปที่ Google Sheet ออนไลน์
+            await fetch(scriptURL, { 
+                method: 'POST', 
+                mode: 'no-cors', // ทะลวงระบบป้องกัน CORS
+                body: JSON.stringify(record),
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            });
+
+            // 🎉 2. แจ้งเตือนเมื่อข้อมูลวิ่งออกไปแล้ว
+            Swal.fire({ icon: 'success', title: 'ออนไลน์สำเร็จ!', text: 'ข้อมูลส่งเข้า Google Sheets เรียบร้อย', timer: 2000 });
+
+            // 💾 3. เซฟข้อมูลสำรองลงหน้าเว็บด้วย เพื่อให้ตารางยังโชว์ข้อมูลได้อยู่
+            let currentDb = JSON.parse(localStorage.getItem('OSDA_DB_PRO')) || [];
+            currentDb = currentDb.filter(x => String(x.id) !== String(id));
+            currentDb.push(record);
+            localStorage.setItem('OSDA_DB_PRO', JSON.stringify(currentDb));
+            
+            // ถ้ามีแนบไฟล์ ให้เซฟไฟล์ลงเครื่องไว้ก่อน
+            if(hasFile) {
+                await localforage.setItem(`file_${id}`, fileData);
+            }
+
+            db = currentDb; // อัปเดตฐานข้อมูลหน้าจอ
+            handleSearch(); // สั่งตารางให้รีเฟรชข้อมูลล่าสุด
+
+            if (typeof goHome === 'function') goHome(); // เด้งกลับหน้าหลัก
+
+        } catch (error) {
+            console.error(error);
+            Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'เครือข่ายมีปัญหา ไม่สามารถเชื่อมต่อฐานข้อมูลได้' });
+        }
+    };
+    function handleSearch() {
+        const q = document.getElementById('searchInput').value.trim().toLowerCase();
+        filteredRecords = db.filter(r => 
+            (r.subject || '').toLowerCase().includes(q) || 
+            (r.seq || '').toLowerCase().includes(q) ||
+            (r.sender || '').toLowerCase().includes(q)
+        ).sort((a,b) => b.id - a.id);
+        
+        currentPage = 1; 
+        renderList();
+    }
+
+    function changePage(step) { currentPage += step; renderList(); }
+
+    function renderList() {
+        const container = document.getElementById('recordList');
+        container.innerHTML = '';
+        
+        if (filteredRecords.length === 0) {
+            container.innerHTML = `<div class="text-center py-12 text-slate-400 font-bold">ไม่พบรายการ</div>`;
+            document.getElementById('paginationControls').style.display = 'none';
+            return;
+        }
+
+        const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
+        document.getElementById('paginationControls').style.display = 'flex';
+        document.getElementById('pageInfo').innerText = `หน้า ${currentPage} / ${totalPages}`;
+        document.getElementById('btnPrev').disabled = (currentPage === 1);
+        document.getElementById('btnNext').disabled = (currentPage === totalPages);
+        
+        const start = (currentPage - 1) * itemsPerPage;
+        const pageItems = filteredRecords.slice(start, start + itemsPerPage);
+        
+        pageItems.forEach((r) => {
+            const isBackfill = r.status === 'รับย้อนหลัง' || (r.seq && r.seq.includes('.'));
+            const rowClass = isBackfill ? 'row-backfill' : 'row-normal';
+            const statusBadge = isBackfill 
+                ? `<span class="bg-yellow-100 text-yellow-700 border border-yellow-200 px-3 py-1 rounded-full text-[10px] font-black">รับย้อนหลัง</span>`
+                : `<span class="bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-[10px] font-black">รับแล้ว</span>`;
+
+            container.innerHTML += `
+                <div class="${rowClass} table-row-hover p-4 grid grid-cols-12 gap-4 items-center border-b border-slate-100 min-h-[80px]">
+                    <div class="col-span-2 flex justify-center items-center">
+                        <span class="font-black text-slate-700 bg-white px-3 py-1.5 rounded-lg border border-slate-200 text-sm shadow-sm">
+                            # ${r.seq}
+                        </span>
+                    </div>
+                    <div class="col-span-4 flex flex-col justify-center gap-1">
+                        <div class="font-bold text-slate-800 text-sm">${r.subject}</div>
+                        <div class="text-[11px] text-slate-500 flex flex-wrap gap-x-3 gap-y-1">
+                            <span><b>จาก:</b> ${r.sender || '-'}</span>
+                            <span><b>ถึง:</b> ${r.receiver || '-'}</span>
+                        </div>
+                    </div>
+                    <div class="col-span-2 flex justify-center items-center">${statusBadge}</div>
+                    <div class="col-span-2 text-xs text-slate-600 flex flex-col justify-center items-center">
+                        <div class="font-bold text-slate-800 mb-0.5">${formatThaiDateShort(r.logDate)}</div>
+                        <div class="text-[10px] text-slate-400">เวลา: ${r.logTime || '-'}</div>
+                    </div>
+                    <div class="col-span-2 flex flex-row flex-wrap justify-center items-center gap-2">
+                        <button onclick="editRecord(${r.id})" class="px-3 py-1 bg-white border border-slate-300 text-slate-600 hover:border-blue-500 hover:text-blue-600 rounded text-[11px] font-bold transition-all shadow-sm">แก้ไข</button>
+                        ${r.hasFile ? `<button onclick="viewFile(${r.id})" class="px-3 py-1 bg-white border border-slate-300 text-slate-600 hover:border-slate-500 hover:text-slate-800 rounded text-[11px] font-bold transition-all shadow-sm">ดูไฟล์</button>` : ''}
+                        <button onclick="deleteRecord(${r.id})" class="px-3 py-1 bg-white border border-slate-300 text-slate-600 hover:border-red-500 hover:text-red-600 rounded text-[11px] font-bold transition-all shadow-sm">ลบ</button>
+                    </div>
+                </div>
+            `;
+        });
+        lucide.createIcons();
+    }
+
+    window.viewFile = async (id) => {
+        const file = await localforage.getItem(`file_${id}`);
+        if (file) {
+            const win = window.open();
+            win.document.write(`<iframe src="${file}" frameborder="0" style="width:100%; height:100%;" allowfullscreen></iframe>`);
+        }
+    };
+
+    window.editRecord = (id) => {
+        const data = db.find(x => x.id === id);
+        const isBackfill = data.status === 'รับย้อนหลัง' || data.seq.includes('.');
+        openForm(isBackfill ? 'backfill' : 'new'); 
+        currentMode = 'edit'; 
+        
+        document.getElementById('formTitle').innerText = 'แก้ไขรายละเอียด';
+        document.getElementById('f_id').value = data.id;
+        document.getElementById('f_seq').value = data.seq;
+        document.getElementById('f_sysDate').value = data.sysDate || data.logDate;
+        document.getElementById('f_sysTime').value = data.sysTime || '';
+        document.getElementById('f_logDate').value = data.logDate;
+        document.getElementById('f_logTime').value = data.logTime || '';
+        document.getElementById('f_sender').value = data.sender || '';
+        document.getElementById('f_receiver').value = data.receiver || '';
+        document.getElementById('f_subject').value = data.subject || '';
+        document.getElementById('f_remark').value = data.remark || '';
+        document.getElementById('f_status').value = data.status || (isBackfill ? 'รับย้อนหลัง' : 'รับแล้ว');
+        
+        document.getElementById('f_logDate').readOnly = true;
+        document.getElementById('f_logTime').readOnly = true;
+        
+        if(data.hasFile) {
+            document.getElementById('f_fileStatus').innerText = "📌 มีไฟล์เดิมแนบไว้แล้ว";
+        }
+    };
+
+    window.deleteRecord = (id) => {
+        Swal.fire({
+            title: 'ยืนยันการลบ?',
+            text: "ลบแล้วจะไม่สามารถกู้คืนได้!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            confirmButtonText: 'ลบเลย',
+            cancelButtonText: 'ยกเลิก'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                db = db.filter(x => String(x.id) !== String(id));
+                localStorage.setItem('OSDA_DB_PRO', JSON.stringify(db));
+                await localforage.removeItem(`file_${id}`);
+                handleSearch();
+            }
+        });
+    };
+</script>
+</body>
+</html>
