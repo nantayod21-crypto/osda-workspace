@@ -18,8 +18,8 @@
         .kmitl-gradient { background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); }
         .input-focus:focus { outline: none; border-color: var(--kmitl); box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.1); }
         .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
-        .btn-active:active { transform: scale(0.98); opacity: 0.9; }
-        input[readOnly] { background-color: #f1f5f9; color: #64748b; cursor: not-allowed; }
+        .btn-active { transform: scale(0.98); opacity: 0.9; }
+        input[readOnly] { background-color: #f8fafc; color: #64748b; }
     </style>
 </head>
 <body>
@@ -71,7 +71,11 @@
                 </div>
                 <div class="space-y-1">
                     <label class="text-xs font-bold text-gray-400 uppercase ml-1">สถานะ</label>
-                    <input type="text" id="f_status" readonly class="w-full p-3 rounded-xl border border-gray-200 font-bold">
+                    <select id="f_status" class="w-full p-3 rounded-xl border border-gray-200 input-focus bg-white">
+                        <option value="รับแล้ว">รับแล้ว</option>
+                        <option value="รับย้อนหลัง">รับย้อนหลัง</option>
+                        <option value="รอดำเนินการ">รอดำเนินการ</option>
+                    </select>
                 </div>
             </div>
 
@@ -92,14 +96,14 @@
 
             <div class="space-y-1">
                 <label class="text-xs font-bold text-gray-400 uppercase ml-1">หลักฐานเอกสาร (ถ้ามี)</label>
-                <label for="file-input" id="drop-zone" class="block border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center hover:bg-orange-50 transition-colors cursor-pointer group">
+                <div id="drop-zone" onclick="document.getElementById('file-input').click()" class="border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center hover:bg-orange-50 transition-colors cursor-pointer group">
                     <input type="file" id="file-input" class="hidden" accept="image/*" onchange="handleFile(this)">
                     <i data-lucide="camera" class="w-8 h-8 mx-auto mb-2 text-gray-400 group-hover:text-orange-500"></i>
                     <p class="text-sm text-gray-500" id="file-label">กดเพื่อถ่ายภาพหรือแนบรูป</p>
                     <p class="text-[10px] text-gray-400 mt-1">บีบอัดภาพอัตโนมัติเพื่อความรวดเร็ว</p>
                     <input type="hidden" id="f_fileData">
                     <p id="f_fileStatus" class="mt-2 text-xs font-bold text-green-600"></p>
-                </label>
+                </div>
             </div>
 
             <div class="space-y-1">
@@ -108,8 +112,8 @@
             </div>
 
             <div class="flex gap-3 pt-2">
-                <button onclick="resetForm()" class="flex-1 py-4 bg-gray-100 text-gray-500 font-bold rounded-2xl btn-active transition-all">ล้างข้อมูล</button>
-                <button onclick="saveData()" class="flex-[2] py-4 kmitl-gradient text-white font-bold rounded-2xl shadow-lg shadow-orange-200 btn-active transition-all flex items-center justify-center gap-2">
+                <button onclick="resetForm()" class="flex-1 py-4 bg-gray-100 text-gray-500 font-bold rounded-2xl active:btn-active transition-all">ล้างข้อมูล</button>
+                <button onclick="saveData()" class="flex-[2] py-4 kmitl-gradient text-white font-bold rounded-2xl shadow-lg shadow-orange-200 active:btn-active transition-all flex items-center justify-center gap-2">
                     <i data-lucide="save" class="w-5 h-5"></i>
                     บันทึกข้อมูล
                 </button>
@@ -121,8 +125,6 @@
         lucide.createIcons();
         let currentMode = 'normal';
 
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzZv1V6AhBHu0h-veSAs95_3vuxKBnbYjTidj9K758b1N3lTvq5ueiVyJBaq4p62UEZ/exec';
-
         window.onload = () => {
             initForm();
         };
@@ -133,13 +135,6 @@
             document.getElementById('f_logTime').value = now.toTimeString().slice(0,5);
             document.getElementById('f_sysDate').value = now.toLocaleDateString('th-TH');
             document.getElementById('f_sysTime').value = now.toLocaleTimeString('th-TH');
-            
-            if(currentMode === 'normal') {
-                document.getElementById('f_status').value = "รับแล้ว";
-            } else {
-                document.getElementById('f_status').value = "รับย้อนหลัง";
-            }
-            
             calculateSequence();
         }
 
@@ -161,26 +156,17 @@
             calculateSequence();
         }
 
-        async function calculateSequence() {
+        function calculateSequence() {
             try {
                 const targetDate = document.getElementById('f_logDate').value;
                 const seqDisplayEl = document.getElementById('f_seq');
                 if (!targetDate) return;
 
-                seqDisplayEl.value = "กำลังรันเลข...";
+                // ระบบดั้งเดิม จำลองการรันเลขง่ายๆ
+                seqDisplayEl.value = Date.now().toString().slice(-6);
 
-                const fetchUrl = `${SCRIPT_URL}?action=getSeq&date=${targetDate}&mode=${currentMode}&sheetType=receiver`;
-                const response = await fetch(fetchUrl);
-                const result = await response.json();
-
-                if (result.status === 'success') {
-                    seqDisplayEl.value = result.seq;
-                } else {
-                    seqDisplayEl.value = "Error";
-                }
             } catch (err) {
                 console.error("Calculate Seq Error:", err);
-                document.getElementById('f_seq').value = "รอตรวจสอบ..";
             }
         }
 
@@ -197,12 +183,11 @@
                 const compressedFile = await imageCompression(file, options);
                 const base64 = await convertToBase64(compressedFile);
                 document.getElementById('f_fileData').value = base64;
-                label.innerText = "✅ แนบรูปเรียบร้อย";
-                status.innerText = "📌 พร้อมส่งข้อมูล";
+                label.innerText = "✅ บีบอัดเรียบร้อย";
+                status.innerText = "📌 พร้อมแนบไปกับข้อมูล";
             } catch (error) {
                 console.error(error);
                 label.innerText = "❌ เกิดข้อผิดพลาด";
-                status.innerText = "กรุณาลองใหม่อีกครั้ง";
             }
         }
 
@@ -216,49 +201,15 @@
         }
 
         window.saveData = async () => {
-            const record = {
-                sheetType: 'receiver',
-                id: document.getElementById('f_id').value || Date.now().toString(),
-                seq: document.getElementById('f_seq').value,
-                logDate: document.getElementById('f_logDate').value,
-                logTime: document.getElementById('f_logTime').value,
-                sender: document.getElementById('f_sender').value,
-                receiver: document.getElementById('f_receiver').value,
-                subject: document.getElementById('f_subject').value,
-                status: document.getElementById('f_status').value,
-                remark: document.getElementById('f_remark').value,
-                fileData: document.getElementById('f_fileData').value,
-                hasFile: !!document.getElementById('f_fileData').value,
-                sysDate: document.getElementById('f_sysDate').value,
-                sysTime: document.getElementById('f_sysTime').value
-            };
-
-            if(!record.sender || !record.subject) {
-                Swal.fire('ข้อมูลไม่ครบ', 'กรุณากรอกผู้ส่งและรายละเอียดเรื่อง', 'warning');
-                return;
-            }
-
             Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-            try {
-                const response = await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(record)
+            // ระบบดั้งเดิม: บันทึกจำลอง
+            setTimeout(() => {
+                Swal.fire('สำเร็จ!', 'บันทึกข้อมูลจำลองเรียบร้อยแล้ว', 'success').then(() => {
+                    resetForm();
+                    initForm();
                 });
-                const res = await response.json();
-                
-                if(res.status === 'success') {
-                    Swal.fire('สำเร็จ!', 'บันทึกข้อมูลเข้า Google Sheets เรียบร้อย!', 'success').then(() => {
-                        resetForm();
-                        initForm();
-                    });
-                } else {
-                    throw new Error(res.message || "เกิดข้อผิดพลาดจากฝั่งเซิร์ฟเวอร์");
-                }
-            } catch (err) {
-                console.error(err);
-                Swal.fire('ผิดพลาด', 'ไม่สามารถบันทึกได้: ' + err.message, 'error');
-            }
+            }, 1000);
         };
 
         function resetForm() {
