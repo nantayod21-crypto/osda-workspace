@@ -597,92 +597,59 @@
         }
     };
 
-    // 🟢🟢 จุดที่ผ่าตัดแก้ไขให้ส่งข้อมูลขึ้น Google Sheets 🟢🟢
-    document.addEventListener('DOMContentLoaded', () => {
-        if(window.lucide) lucide.createIcons();
+    const docForm = document.getElementById('docForm');
+    if (docForm) {
+        docForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            try {
+                const editIdEl = document.getElementById('editId');
+                const fromWhoEl = document.getElementById('fromWho');
+                const toWhoEl = document.getElementById('toWho');
+                const deptEl = document.getElementById('department');
+                const docNumEl = document.getElementById('docNumber');
+                const subjectEl = document.getElementById('subject');
+                const actionEl = document.getElementById('action');
+                const dateInputEl = document.getElementById('dateInput');
+                const timeInputEl = document.getElementById('timeInput');
+                const seqDisplayEl = document.getElementById('seqDisplay');
 
-        const docForm = document.getElementById('docForm');
-        if (docForm) {
-            // เปลี่ยนฟังก์ชันให้เป็น async เพื่อใช้คู่กับ fetch
-            docForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
+                const record = { 
+                    id: (editIdEl && editIdEl.value) ? editIdEl.value : Date.now().toString(), 
+                    from_who: fromWhoEl ? fromWhoEl.value : '', 
+                    toWho: toWhoEl ? toWhoEl.value : '', 
+                    department: deptEl ? deptEl.value : '', 
+                    doc_number: docNumEl ? docNumEl.value : '', 
+                    subject: subjectEl ? subjectEl.value : '', 
+                    action: actionEl ? actionEl.value : '', 
+                    date: dateInputEl ? dateInputEl.value : '', 
+                    time: timeInputEl ? timeInputEl.value : '', 
+                    sequence: seqDisplayEl ? seqDisplayEl.value : '' 
+                };
 
-                // URL จาก Google Apps Script ที่นายให้มาเป๊ะๆ
-                const scriptURL = 'https://script.google.com/macros/s/AKfycbwaprBpMc7AxmfGxNIY7E4IWZEkhV-k_t3beYyo0FfSmrNY2IB7xhwdwzNu_SrlGBLZ/exec';
-                
-                try {
-                    const editIdEl = document.getElementById('editId');
-                    const fromWhoEl = document.getElementById('fromWho');
-                    const toWhoEl = document.getElementById('toWho');
-                    const deptEl = document.getElementById('department');
-                    const docNumEl = document.getElementById('docNumber');
-                    const subjectEl = document.getElementById('subject');
-                    const actionEl = document.getElementById('action');
-                    const dateInputEl = document.getElementById('dateInput');
-                    const timeInputEl = document.getElementById('timeInput');
-                    const seqDisplayEl = document.getElementById('seqDisplay');
-
-                    // จัดเตรียมข้อมูล
-                    const id = (editIdEl && editIdEl.value) ? editIdEl.value : Date.now().toString();
-                    const record = { 
-                        id: id, 
-                        from_who: fromWhoEl ? fromWhoEl.value : '', 
-                        toWho: toWhoEl ? toWhoEl.value : '', 
-                        department: deptEl ? deptEl.value : '', 
-                        doc_number: docNumEl ? docNumEl.value : '', 
-                        subject: subjectEl ? subjectEl.value : '', 
-                        action: actionEl ? actionEl.value : '', 
-                        date: dateInputEl ? dateInputEl.value : '', 
-                        time: timeInputEl ? timeInputEl.value : '', 
-                        sequence: seqDisplayEl ? seqDisplayEl.value : '' 
-                    };
-
-                    // โชว์หน้าต่างโหลดรอ
-                    Swal.fire({
-                        title: 'กำลังเชื่อมต่อฐานข้อมูล...',
-                        text: 'กรุณารอสักครู่',
-                        allowOutsideClick: false,
-                        didOpen: () => {
-                            Swal.showLoading();
-                        }
-                    });
-
-                    // ยิงข้อมูลไป Google Sheets
-                    await fetch(scriptURL, {
-                        method: 'POST',
-                        body: JSON.stringify(record)
-                    });
-
-                    // บันทึกลงเครื่องแบบ Local (เผื่อเอาไว้โชว์ปฏิทินแบบเก่า)
-                    if (editIdEl && editIdEl.value) {
-                        const index = db.findIndex(x => x.id === editIdEl.value);
-                        if(index > -1) db[index] = record;
-                    } else {
-                        db.push(record);
-                    }
-                    localStorage.setItem('kmitl_rt_db', JSON.stringify(db));
-
-                    // แจ้งเตือนเมื่อสำเร็จ และกลับหน้าหลัก
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'ออนไลน์สำเร็จ!',
-                        text: 'บันทึกข้อมูลเข้า Google Sheets เรียบร้อย',
-                        timer: 2000
-                    });
-                    
-                    goHome();
-
-                } catch (err) {
-                    console.error('Submit Error: ', err);
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'ผิดพลาด',
-                        text: 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้'
-                    });
+                if (editIdEl && editIdEl.value) {
+                    const index = db.findIndex(x => x.id === editIdEl.value);
+                    if(index > -1) db[index] = record;
+                } else {
+                    db.push(record);
                 }
-            });
-        }
-    });
+                
+                localStorage.setItem('kmitl_rt_db', JSON.stringify(db));
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'สำเร็จ!',
+                    text: 'บันทึกข้อมูลเรียบร้อย',
+                    timer: 1500
+                });
+                
+                goHome();
+
+            } catch (err) {
+                console.error('Submit Error: ', err);
+            }
+        });
+    }
 
     function changeMonth(v) {
         viewDate.setMonth(viewDate.getMonth() + v);
