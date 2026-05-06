@@ -3,226 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OSDA - Front Desk Pro (Receiver)</title>
+    <title>OSDA - Front Desk (Receiver)</title>
     
     <script src="https://cdn.tailwindcss.com/3.4.17"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
-    
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    
     <style>
-        :root { --kmitl: #ea580c; --dark: #1e293b; }
-        body { font-family: 'Sarabun', sans-serif; background-color: #f0f4f8; margin: 0; padding-bottom: 80px; }
-        .kmitl-gradient { background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); }
-        .input-focus:focus { outline: none; border-color: var(--kmitl); box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.1); }
+        body { font-family: 'Sarabun', sans-serif; background-color: #f1f5f9; }
         .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
-        .btn-active { transform: scale(0.98); opacity: 0.9; }
-        input[readOnly] { background-color: #f8fafc; color: #64748b; }
+        .btn-active:active { transform: scale(0.98); }
     </style>
 </head>
-<body>
+<body class="p-4 sm:p-8">
 
-    <header class="kmitl-gradient text-white p-6 rounded-b-[2rem] shadow-lg mb-6">
-        <div class="flex justify-between items-center max-w-2xl mx-auto">
-            <div>
-                <h1 class="text-2xl font-extrabold tracking-tight">OSDA RECEIVER</h1>
-                <p class="text-orange-100 text-sm opacity-90">ระบบลงรับเอกสาร Pro</p>
-            </div>
-            <div class="bg-white/20 p-2 rounded-full backdrop-blur-md">
-                <i data-lucide="package-search" class="w-6 h-6"></i>
-            </div>
-        </div>
-    </header>
+    <div class="max-w-md mx-auto">
+        <header class="mb-6 flex items-center justify-between">
+            <a href="index.html" class="p-2 bg-white rounded-full shadow-sm hover:bg-slate-50"><i data-lucide="arrow-left" class="w-6 h-6 text-slate-600"></i></a>
+            <h1 class="text-2xl font-bold text-slate-800">ระบบลงรับเอกสาร</h1>
+            <div class="w-10"></div>
+        </header>
 
-    <main class="max-w-2xl mx-auto px-4 space-y-6">
-        
-        <div class="flex gap-2 p-1 bg-gray-200 rounded-xl">
-            <button onclick="setMode('normal')" id="btn-normal" class="flex-1 py-2 px-4 rounded-lg font-bold transition-all bg-white text-orange-600 shadow-sm">
-                บันทึกใหม่
-            </button>
-            <button onclick="setMode('backfill')" id="btn-backfill" class="flex-1 py-2 px-4 rounded-lg font-bold transition-all text-gray-500">
-                ย้อนหลัง
-            </button>
-        </div>
-
-        <div class="glass-card rounded-3xl shadow-xl border border-white p-6 space-y-5">
-            
-            <input type="hidden" id="f_id">
-            <input type="hidden" id="f_sysDate">
-            <input type="hidden" id="f_sysTime">
-
-            <div class="grid grid-cols-2 gap-4">
-                <div class="space-y-1">
-                    <label class="text-xs font-bold text-gray-400 uppercase ml-1">วันที่รับ</label>
-                    <input type="date" id="f_logDate" onchange="calculateSequence()" class="w-full p-3 rounded-xl border border-gray-200 input-focus font-medium">
+        <div class="glass-card p-6 rounded-3xl shadow-xl shadow-slate-200 border border-white">
+            <form id="receiverForm" class="space-y-4">
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 ml-1">วันที่รับ</label>
+                        <input type="date" id="r_date" required class="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 ml-1">เวลา</label>
+                        <input type="time" id="r_time" required class="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none">
+                    </div>
                 </div>
-                <div class="space-y-1">
-                    <label class="text-xs font-bold text-gray-400 uppercase ml-1">เลขลำดับ</label>
-                    <input type="text" id="f_seq" readonly class="w-full p-3 rounded-xl border border-gray-200 font-bold text-orange-600">
+
+                <div>
+                    <label class="text-xs font-bold text-slate-400 ml-1">เลขลำดับรับ (ออโต้)</label>
+                    <input type="text" id="r_seq" disabled class="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-blue-600 font-bold text-center">
                 </div>
-            </div>
 
-            <div class="grid grid-cols-2 gap-4">
-                <div class="space-y-1">
-                    <label class="text-xs font-bold text-gray-400 uppercase ml-1">เวลาที่รับ</label>
-                    <input type="time" id="f_logTime" class="w-full p-3 rounded-xl border border-gray-200 input-focus">
+                <div>
+                    <label class="text-xs font-bold text-slate-400 ml-1">จาก (ผู้ส่ง/หน่วยงาน)</label>
+                    <input type="text" id="r_sender" required placeholder="ระบุชื่อผู้ส่ง" class="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none">
                 </div>
-                <div class="space-y-1">
-                    <label class="text-xs font-bold text-gray-400 uppercase ml-1">สถานะ</label>
-                    <select id="f_status" class="w-full p-3 rounded-xl border border-gray-200 input-focus bg-white">
-                        <option value="รับแล้ว">รับแล้ว</option>
-                        <option value="รับย้อนหลัง">รับย้อนหลัง</option>
-                        <option value="รอดำเนินการ">รอดำเนินการ</option>
-                    </select>
+
+                <div>
+                    <label class="text-xs font-bold text-slate-400 ml-1">ถึง (ผู้รับภายใน)</label>
+                    <input type="text" id="r_receiver" required placeholder="ระบุชื่อผู้รับ" class="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none">
                 </div>
-            </div>
 
-            <div class="space-y-1">
-                <label class="text-xs font-bold text-gray-400 uppercase ml-1">ผู้ส่ง / หน่วยงาน</label>
-                <input type="text" id="f_sender" placeholder="ระบุชื่อหรือฝ่ายที่ส่งมา" class="w-full p-3 rounded-xl border border-gray-200 input-focus">
-            </div>
-
-            <div class="space-y-1">
-                <label class="text-xs font-bold text-gray-400 uppercase ml-1">ผู้รับ (ภายใน)</label>
-                <input type="text" id="f_receiver" placeholder="ระบุชื่อผู้รับในหน่วยงาน" class="w-full p-3 rounded-xl border border-gray-200 input-focus">
-            </div>
-
-            <div class="space-y-1">
-                <label class="text-xs font-bold text-gray-400 uppercase ml-1">เรื่อง / รายละเอียด</label>
-                <textarea id="f_subject" rows="2" placeholder="รายละเอียดเอกสารโดยสังเขป" class="w-full p-3 rounded-xl border border-gray-200 input-focus"></textarea>
-            </div>
-
-            <div class="space-y-1">
-                <label class="text-xs font-bold text-gray-400 uppercase ml-1">หลักฐานเอกสาร (ถ้ามี)</label>
-                <div id="drop-zone" onclick="document.getElementById('file-input').click()" class="border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center hover:bg-orange-50 transition-colors cursor-pointer group">
-                    <input type="file" id="file-input" class="hidden" accept="image/*" onchange="handleFile(this)">
-                    <i data-lucide="camera" class="w-8 h-8 mx-auto mb-2 text-gray-400 group-hover:text-orange-500"></i>
-                    <p class="text-sm text-gray-500" id="file-label">กดเพื่อถ่ายภาพหรือแนบรูป</p>
-                    <p class="text-[10px] text-gray-400 mt-1">บีบอัดภาพอัตโนมัติเพื่อความรวดเร็ว</p>
-                    <input type="hidden" id="f_fileData">
-                    <p id="f_fileStatus" class="mt-2 text-xs font-bold text-green-600"></p>
+                <div>
+                    <label class="text-xs font-bold text-slate-400 ml-1">เรื่อง / รายละเอียด</label>
+                    <textarea id="r_subject" rows="2" required placeholder="ระบุเรื่อง..." class="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none"></textarea>
                 </div>
-            </div>
+                
+                <div>
+                    <label class="text-xs font-bold text-slate-400 ml-1">หมายเหตุ (ถ้ามี)</label>
+                    <input type="text" id="r_remark" placeholder="..." class="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none">
+                </div>
 
-            <div class="space-y-1">
-                <label class="text-xs font-bold text-gray-400 uppercase ml-1">หมายเหตุ</label>
-                <input type="text" id="f_remark" placeholder="บันทึกเพิ่มเติม" class="w-full p-3 rounded-xl border border-gray-200 input-focus text-sm">
-            </div>
-
-            <div class="flex gap-3 pt-2">
-                <button onclick="resetForm()" class="flex-1 py-4 bg-gray-100 text-gray-500 font-bold rounded-2xl active:btn-active transition-all">ล้างข้อมูล</button>
-                <button onclick="saveData()" class="flex-[2] py-4 kmitl-gradient text-white font-bold rounded-2xl shadow-lg shadow-orange-200 active:btn-active transition-all flex items-center justify-center gap-2">
-                    <i data-lucide="save" class="w-5 h-5"></i>
-                    บันทึกข้อมูล
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl mt-4 btn-active transition-colors shadow-lg shadow-blue-200 flex justify-center items-center gap-2">
+                    <i data-lucide="save" class="w-5 h-5"></i> บันทึกข้อมูลรับเข้า
                 </button>
-            </div>
+            </form>
         </div>
-    </main>
+    </div>
 
     <script>
         lucide.createIcons();
-        let currentMode = 'normal';
-
+        
         window.onload = () => {
-            initForm();
-        };
-
-        function initForm() {
             const now = new Date();
-            document.getElementById('f_logDate').value = now.toISOString().split('T')[0];
-            document.getElementById('f_logTime').value = now.toTimeString().slice(0,5);
-            document.getElementById('f_sysDate').value = now.toLocaleDateString('th-TH');
-            document.getElementById('f_sysTime').value = now.toLocaleTimeString('th-TH');
-            calculateSequence();
-        }
-
-        function setMode(mode) {
-            currentMode = mode;
-            const btnNormal = document.getElementById('btn-normal');
-            const btnBackfill = document.getElementById('btn-backfill');
-            
-            if(mode === 'normal') {
-                btnNormal.className = "flex-1 py-2 px-4 rounded-lg font-bold transition-all bg-white text-orange-600 shadow-sm";
-                btnBackfill.className = "flex-1 py-2 px-4 rounded-lg font-bold transition-all text-gray-500";
-                document.getElementById('f_status').value = "รับแล้ว";
-                initForm();
-            } else {
-                btnBackfill.className = "flex-1 py-2 px-4 rounded-lg font-bold transition-all bg-white text-orange-600 shadow-sm";
-                btnNormal.className = "flex-1 py-2 px-4 rounded-lg font-bold transition-all text-gray-500";
-                document.getElementById('f_status').value = "รับย้อนหลัง";
-            }
-            calculateSequence();
-        }
-
-        function calculateSequence() {
-            try {
-                const targetDate = document.getElementById('f_logDate').value;
-                const seqDisplayEl = document.getElementById('f_seq');
-                if (!targetDate) return;
-
-                // ระบบดั้งเดิม จำลองการรันเลขง่ายๆ
-                seqDisplayEl.value = Date.now().toString().slice(-6);
-
-            } catch (err) {
-                console.error("Calculate Seq Error:", err);
-            }
-        }
-
-        async function handleFile(input) {
-            const file = input.files[0];
-            if (!file) return;
-
-            const label = document.getElementById('file-label');
-            const status = document.getElementById('f_fileStatus');
-            label.innerText = "กำลังประมวลผลภาพ...";
-
-            try {
-                const options = { maxSizeMB: 0.4, maxWidthOrHeight: 1280, useWebWorker: true };
-                const compressedFile = await imageCompression(file, options);
-                const base64 = await convertToBase64(compressedFile);
-                document.getElementById('f_fileData').value = base64;
-                label.innerText = "✅ บีบอัดเรียบร้อย";
-                status.innerText = "📌 พร้อมแนบไปกับข้อมูล";
-            } catch (error) {
-                console.error(error);
-                label.innerText = "❌ เกิดข้อผิดพลาด";
-            }
-        }
-
-        function convertToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-            });
-        }
-
-        window.saveData = async () => {
-            Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-            // ระบบดั้งเดิม: บันทึกจำลอง
-            setTimeout(() => {
-                Swal.fire('สำเร็จ!', 'บันทึกข้อมูลจำลองเรียบร้อยแล้ว', 'success').then(() => {
-                    resetForm();
-                    initForm();
-                });
-            }, 1000);
+            document.getElementById('r_date').value = now.toISOString().split('T')[0];
+            document.getElementById('r_time').value = now.toTimeString().slice(0,5);
+            document.getElementById('r_seq').value = Math.floor(100000 + Math.random() * 900000); // จำลองเลขสุ่ม
         };
 
-        function resetForm() {
-            document.getElementById('f_id').value = '';
-            document.getElementById('f_sender').value = '';
-            document.getElementById('f_receiver').value = '';
-            document.getElementById('f_subject').value = '';
-            document.getElementById('f_remark').value = '';
-            document.getElementById('f_fileData').value = '';
-            document.getElementById('f_fileStatus').innerText = '';
-            document.getElementById('file-label').innerText = "กดเพื่อถ่ายภาพหรือแนบรูป";
-            document.getElementById('file-input').value = '';
-        }
+        document.getElementById('receiverForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'success',
+                title: 'สำเร็จ!',
+                text: 'บันทึกข้อมูลรับเข้าเรียบร้อย',
+                timer: 1500,
+                showConfirmButton: false
+            }).then(() => {
+                window.location.reload();
+            });
+        });
     </script>
 </body>
 </html>
