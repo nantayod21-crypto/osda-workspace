@@ -175,175 +175,373 @@
 
 <script>
     localforage.config({ name: 'OSDA_STORAGE' });
-    <script>
-    // 1. ตั้งค่าเริ่มต้น
-   <script>
-    let db = [];
-    const scriptURL = 'https://script.google.com/macros/s/AKfycbzeBP8flld0eBrV5qQ4jvbZqNoQhtY8-mv1TwlhIHWHKuPA9MihLsp54a6keUw_ODxjSg/exec';
+    let db = JSON.parse(localStorage.getItem('OSDA_DB_PRO') || '[]');
+    let currentMode = 'hub'; 
+    let realTimeClock; 
+    let currentPage = 1;
+    const itemsPerPage = 6; 
+    let filteredRecords = []; 
 
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+
+  
     window.onload = function() {
-        if(sessionStorage.getItem('osda_auth') !== 'true') {
-            window.location.href = 'index.html';
-            return;
-        }
-        init();
-    }
-
-    async function init() {
-        lucide.createIcons();
-        await loadOnlineData(); // 🔄 เปลี่ยนมาดึงข้อมูลออนไลน์แทน
-    }
-
-    // --- 🌐 ฟังก์ชันดึงข้อมูลจาก Google Sheets (ทำให้เห็นข้อมูลคนอื่น) ---
-    async function loadOnlineData() {
-        try {
-            // โชว์ Loading นิดนึงระหว่างดึงข้อมูล
-            const listBody = document.getElementById('list-body');
-            listBody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-slate-400">🔄 กำลังซิงค์ข้อมูลออนไลน์...</td></tr>';
-
-            const response = await fetch(`${scriptURL}?action=read&sheetType=receiver`);
-            const result = await response.json();
-            
-            if (result.status === 'success') {
-                db = result.data;
-                // เซฟสำรองลงเครื่องไว้ด้วย
-                localStorage.setItem('OSDA_DB_PRO', JSON.stringify(db));
-            }
-            renderList();
-        } catch (error) {
-            console.error("Fetch Error:", error);
-            // ถ้าดึงออนไลน์ไม่สำเร็จ ให้ดึงจากเครื่องแก้ขัดไปก่อน
-            db = JSON.parse(localStorage.getItem('OSDA_DB_PRO') || '[]');
-            renderList();
-        }
-    }
-
-    // --- 🗑️ ฟังก์ชันลบข้อมูลแบบไม่ค้าง ---
-    window.deleteRecord = async (id) => {
-        const result = await Swal.fire({
-            title: 'ยืนยันการลบ?',
-            text: "ข้อมูลจะถูกลบออกจากฐานข้อมูลออนไลน์ด้วย",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            confirmButtonText: 'ลบข้อมูล'
-        });
-
-        if (result.isConfirmed) {
-            Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            
-            try {
-                // ส่งคำสั่งลบไปที่ Google Sheets
-                await fetch(scriptURL, { 
-                    method: 'POST', 
-                    mode: 'no-cors', 
-                    body: JSON.stringify({ action: 'delete', id: String(id), sheetType: 'receiver' }) 
-                });
-
-                // ลบในตัวแปรหน้าจอ และอัปเดตหน้าจอทันที
-                db = db.filter(x => String(x.id) !== String(id));
-                localStorage.setItem('OSDA_DB_PRO', JSON.stringify(db));
-                renderList();
-
-                await Swal.fire({ icon: 'success', title: 'ลบสำเร็จ!', timer: 1000, showConfirmButton: false });
-            } catch (err) {
-                Swal.fire('ผิดพลาด', 'ไม่สามารถลบข้อมูลได้', 'error');
-            }
-        }
-    };
-
-    // --- 💾 ฟังก์ชันบันทึก (คงเดิมแต่ปรับให้โหลดข้อมูลใหม่หลังเซฟ) ---
-    window.saveData = async (e) => {
-        if (e) e.preventDefault();
-        const getVal = (id) => document.getElementById(id) ? document.getElementById(id).value : "";
-
-        try {
-            Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-            const record = {
-                action: getVal('f_id') ? 'edit' : 'save',
-                sheetType: 'receiver',
-                id: getVal('f_id') || Date.now(),
-                seq: getVal('f_seq'),
-                sender: getVal('f_sender'),
-                subject: getVal('f_subject'),
-                status: getVal('f_status'),
-                logDate: getVal('f_logDate')
-                // ... เพิ่มฟิลด์อื่นๆ ตามต้องการ ...
-            };
-
-            await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(record) });
-
-            await Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1000 });
-            goHome();
-            await loadOnlineData(); // 🔄 โหลดข้อมูลใหม่เพื่อให้เห็นของคนอื่นด้วย
-
-        } catch (error) {
-            Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: error.message });
-        }
-    };
-
-    function formatThaiDateShort(dateStr) {
-        if (!dateStr) return "-";
-        const d = new Date(dateStr);
-        return isNaN(d) ? dateStr : d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' });
-    }
-
-    function renderList() {
-        const listBody = document.getElementById('list-body');
-        if (!listBody) return;
-        
-        // กรองเอาเฉพาะข้อมูลที่เป็นของฝั่ง receiver
-        const myData = db.filter(item => item.sheetType === 'receiver');
-        
-        if (myData.length === 0) {
-            listBody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-slate-400">ไม่มีข้อมูลการรับ</td></tr>';
-            return;
-        }
-
-        listBody.innerHTML = myData.sort((a,b) => b.id - a.id).map(r => `
-            <tr class="border-b hover:bg-slate-50 transition-colors">
-                <td class="p-4">
-                    <div class="font-bold">${r.seq || '-'}</div>
-                    <div class="text-[10px] text-slate-400">${formatThaiDateShort(r.logDate)}</div>
-                </td>
-                <td class="p-4 text-sm">${r.sender || '-'}</td>
-                <td class="p-4 text-sm font-medium">${r.subject || '-'}</td>
-                <td class="p-4">
-                    <span class="px-2 py-1 rounded-full text-[10px] ${r.status==='รับแล้ว'?'bg-green-100 text-green-600':'bg-amber-100 text-amber-600'}">
-                        ${r.status || 'รอรับ'}
-                    </span>
-                </td>
-                <td class="p-4 text-right space-x-2">
-                    <button onclick="editRecord('${r.id}')" class="text-blue-500 p-1"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
-                    <button onclick="deleteRecord('${r.id}')" class="text-red-500 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                </td>
-            </tr>
-        `).join('');
-        lucide.createIcons();
-    }
-
-    function goForm() {
-        document.getElementById('view-list').classList.add('hidden');
-        document.getElementById('view-form').classList.remove('hidden');
-        document.getElementById('mainForm').reset();
-    }
+    // เช็กว่าผ่านการ Login จากหน้า index มาหรือยัง
+    if (sessionStorage.getItem('osda_auth') !== 'true') {
+        // ถ้ายังไม่ได้ Login หรือแอบพิมพ์ลิ้งก์เข้ามาตรงๆ ให้เตะกลับไปหน้าแรก
+        alert('กรุณาลงชื่อเข้าใช้งานก่อนครับ');
+        window.location.href = 'index.html'; 
+    } 
+    // ถ้า Login แล้ว ก็ให้ทำงานต่อไปตามปกติ
+}
 
     function goHome() {
-        document.getElementById('view-form').classList.add('hidden');
-        document.getElementById('view-list').classList.remove('hidden');
+        clearInterval(realTimeClock); 
+        document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+        document.getElementById('pageHub').classList.add('active');
+        currentMode = 'hub';
+        handleSearch(); 
     }
 
-    window.editRecord = (id) => {
-        const item = db.find(x => String(x.id) === String(id));
-        if (!item) return;
-        goForm();
-        Object.keys(item).forEach(key => {
-            const el = document.getElementById('f_' + key);
-            if (el) el.value = item[key];
-        });
+    function openForm(mode) {
+        clearInterval(realTimeClock);
+        currentMode = mode;
+        
+        document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+        document.getElementById('pageForm').classList.add('active');
+        document.getElementById('docForm').reset();
+        document.getElementById('f_id').value = '';
+        document.getElementById('f_fileStatus').innerText = '';
+        document.getElementById('f_fileData').value = '';
+        
+        const badge = document.getElementById('formStatusBadge');
+        const logDateInput = document.getElementById('f_logDate');
+        const logTimeInput = document.getElementById('f_logTime');
+
+        if (mode === 'new') {
+            document.getElementById('formTitle').innerText = 'รับหนังสือปกติ';
+            document.getElementById('f_status').value = 'รับแล้ว';
+            badge.innerText = '🔵 รับปกติ';
+            badge.className = 'px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 border-emerald-200';
+            logDateInput.readOnly = true; 
+            logTimeInput.readOnly = true; 
+        } else if (mode === 'backfill') {
+            document.getElementById('formTitle').innerText = 'รับหนังสือย้อนหลัง';
+            document.getElementById('f_status').value = 'รับย้อนหลัง';
+            badge.innerText = '🟡 รับย้อนหลัง';
+            badge.className = 'px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-yellow-100 text-yellow-700 border-yellow-200';
+            logDateInput.readOnly = false; 
+            logTimeInput.readOnly = false; 
+        }
+        
+        const updateClock = () => {
+            const now = new Date();
+            document.getElementById('f_sysDate').value = now.toISOString().split('T')[0];
+            document.getElementById('f_sysTime').value = now.toTimeString().split(' ')[0]; 
+        };
+        updateClock();
+        realTimeClock = setInterval(updateClock, 1000);
+
+        const now = new Date();
+        if(mode !== 'edit') {
+            logDateInput.value = now.toISOString().split('T')[0]; 
+            logTimeInput.value = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        }
+        calculateSequence();
+        lucide.createIcons();
+    }
+
+ async function calculateSequence() {
+        if (document.getElementById('f_id').value) return; 
+        
+        const targetDate = document.getElementById('f_logDate').value;
+        if (!targetDate) return;
+
+        const seqEl = document.getElementById('f_seq');
+        seqEl.value = "กำลังดึงเลข..."; 
+
+        // 🟢 URL ของนาย
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbwPalO_otZbz3ldj7dSjctfNuKCwSMAMJUvmslS26w-ZiEvyIU-VCKxMTfhGN-XpwQKPw/exec';
+
+        try {
+            // สังเกตตรงโหมด: เราจะใช้ currentMode ดั้งเดิมของระบบที่รู้ว่านายกดปุ่มไหนเข้ามา
+            const response = await fetch(`${scriptURL}?action=getSeq&mode=${currentMode}&date=${targetDate}`);
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                seqEl.value = data.seq; 
+            } else {
+                seqEl.value = "0001"; 
+            }
+        } catch (err) {
+            console.error("Calculate Seq Error:", err);
+            seqEl.value = "0001"; 
+        }
+    }
+    document.getElementById('f_fileInput').addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        document.getElementById('f_fileStatus').innerHTML = 'กำลังเตรียมไฟล์...';
+        try {
+            let processedFile = file;
+            if (file.type.startsWith('image/')) {
+                processedFile = await imageCompression(file, { maxSizeMB: 0.5, maxWidthOrHeight: 1920 });
+            }
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                document.getElementById('f_fileData').value = ev.target.result;
+                document.getElementById('f_fileStatus').innerText = `✅ แนบไฟล์สำเร็จ: ${file.name}`;
+            };
+            reader.readAsDataURL(processedFile);
+        } catch (err) { console.error(err); }
+    });
+
+    // --- ฟังก์ชันบันทึกข้อมูลแบบไม้ตาย (Bypass CORS) ---
+    let submitted = false;
+
+    // --- ฟังก์ชันบันทึกข้อมูลแบบไม้ตาย (Bypass CORS) ---
+    // --- 1. เพิ่มฟังก์ชันจัดการวันที่ที่หายไป (ป้องกันเครื่องค้าง) ---
+function formatThaiDateShort(dateStr) {
+    if (!dateStr) return "-";
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
+// --- 2. ฟังก์ชันบันทึกข้อมูล  ---
+window.saveData = async (e) => {
+    if (e) e.preventDefault(); 
+    
+    const scriptURL = 'https://script.google.com/macros/s/AKfycbwPalO_otZbz3ldj7dSjctfNuKCwSMAMJUvmslS26w-ZiEvyIU-VCKxMTfhGN-XpwQKPw/exec'; 
+
+    // เช็ค ID ว่ามีครบไหม ป้องกันโค้ดสะดุด
+    const getValue = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.value : "";
     };
-</script>
+
+    try {
+        // เริ่มโชว์ Loading
+        Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+        const id_value = getValue('f_id');
+        const isEdit = id_value ? true : false; 
+        const id = isEdit ? id_value : Date.now();
+        const fileData = getValue('f_fileData');
+
+        const record = {
+            action: isEdit ? 'edit' : 'save',
+            sheetType: 'receiver', 
+            id: id,
+            seq: getValue('f_seq'),
+            sysDate: getValue('f_sysDate'),
+            sysTime: getValue('f_sysTime'),
+            logDate: getValue('f_logDate'),
+            logTime: getValue('f_logTime'),
+            sender: getValue('f_sender'),
+            receiver: getValue('f_receiver'),
+            subject: getValue('f_subject'),
+            remark: getValue('f_remark'),
+            status: getValue('f_status'),
+            hasFile: fileData ? true : false
+        };
+
+        // 🚀 ส่งไป Google Sheets
+        await fetch(scriptURL, { 
+            method: 'POST', 
+            mode: 'no-cors', 
+            body: JSON.stringify(record)
+        });
+
+        // 💾 บันทึกลงเครื่อง (LocalStorage) เพื่อให้ตารางหน้าแรกอัปเดตทันที
+        let currentDb = JSON.parse(localStorage.getItem('OSDA_DB_PRO') || '[]');
+        // ถ้าเป็นการแก้ไข ให้ลบอันเก่าออกก่อน
+        currentDb = currentDb.filter(x => String(x.id) !== String(id));
+        currentDb.push(record);
+        localStorage.setItem('OSDA_DB_PRO', JSON.stringify(currentDb));
+        db = currentDb; // อัปเดตตัวแปรในหน้าเว็บ
+
+        // ถ้ามีไฟล์ ให้เซฟลง Offline Storage (localforage)
+        if (fileData) {
+            await localforage.setItem(`file_${id}`, fileData);
+        }
+
+        // 🎉 แจ้งเตือนสำเร็จ
+        await Swal.fire({ 
+            icon: 'success', 
+            title: 'สำเร็จ!', 
+            text: 'บันทึกข้อมูลเรียบร้อยแล้ว', 
+            timer: 1500 
+        });
+
+        // กลับไปหน้าแรกและอัปเดตตาราง
+        goHome(); 
+
+    } catch (error) {
+        console.error(error);
+        Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'เกิดปัญหา: ' + error.message });
+    }
+};
+
+    function handleSearch() {
+        const q = document.getElementById('searchInput').value.trim().toLowerCase();
+        filteredRecords = db.filter(r => 
+            (r.subject || '').toLowerCase().includes(q) || 
+            (r.seq || '').toLowerCase().includes(q) ||
+            (r.sender || '').toLowerCase().includes(q)
+        ).sort((a,b) => b.id - a.id);
+        
+        currentPage = 1; 
+        renderList();
+    }
+
+    function changePage(step) { currentPage += step; renderList(); }
+
+    function renderList() {
+        const container = document.getElementById('recordList');
+        container.innerHTML = '';
+        
+        if (filteredRecords.length === 0) {
+            container.innerHTML = `<div class="text-center py-12 text-slate-400 font-bold">ไม่พบรายการ</div>`;
+            document.getElementById('paginationControls').style.display = 'none';
+            return;
+        }
+
+        const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
+        document.getElementById('paginationControls').style.display = 'flex';
+        document.getElementById('pageInfo').innerText = `หน้า ${currentPage} / ${totalPages}`;
+        document.getElementById('btnPrev').disabled = (currentPage === 1);
+        document.getElementById('btnNext').disabled = (currentPage === totalPages);
+        
+        const start = (currentPage - 1) * itemsPerPage;
+        const pageItems = filteredRecords.slice(start, start + itemsPerPage);
+        
+        pageItems.forEach((r) => {
+            const isBackfill = r.status === 'รับย้อนหลัง' || (r.seq && r.seq.includes('.'));
+            const rowClass = isBackfill ? 'row-backfill' : 'row-normal';
+            const statusBadge = isBackfill 
+                ? `<span class="bg-yellow-100 text-yellow-700 border border-yellow-200 px-3 py-1 rounded-full text-[10px] font-black">รับย้อนหลัง</span>`
+                : `<span class="bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-[10px] font-black">รับแล้ว</span>`;
+
+            container.innerHTML += `
+                <div class="${rowClass} table-row-hover p-4 grid grid-cols-12 gap-4 items-center border-b border-slate-100 min-h-[80px]">
+                    <div class="col-span-2 flex justify-center items-center">
+                        <span class="font-black text-slate-700 bg-white px-3 py-1.5 rounded-lg border border-slate-200 text-sm shadow-sm">
+                            # ${r.seq}
+                        </span>
+                    </div>
+                    <div class="col-span-4 flex flex-col justify-center gap-1">
+                        <div class="font-bold text-slate-800 text-sm">${r.subject}</div>
+                        <div class="text-[11px] text-slate-500 flex flex-wrap gap-x-3 gap-y-1">
+                            <span><b>จาก:</b> ${r.sender || '-'}</span>
+                            <span><b>ถึง:</b> ${r.receiver || '-'}</span>
+                        </div>
+                    </div>
+                    <div class="col-span-2 flex justify-center items-center">${statusBadge}</div>
+                    <div class="col-span-2 text-xs text-slate-600 flex flex-col justify-center items-center">
+                        <div class="font-bold text-slate-800 mb-0.5">${formatThaiDateShort(r.logDate)}</div>
+                        <div class="text-[10px] text-slate-400">เวลา: ${r.logTime || '-'}</div>
+                    </div>
+                    <div class="col-span-2 flex flex-row flex-wrap justify-center items-center gap-2">
+                        <button onclick="editRecord(${r.id})" class="px-3 py-1 bg-white border border-slate-300 text-slate-600 hover:border-blue-500 hover:text-blue-600 rounded text-[11px] font-bold transition-all shadow-sm">แก้ไข</button>
+                        ${r.hasFile ? `<button onclick="viewFile(${r.id})" class="px-3 py-1 bg-white border border-slate-300 text-slate-600 hover:border-slate-500 hover:text-slate-800 rounded text-[11px] font-bold transition-all shadow-sm">ดูไฟล์</button>` : ''}
+                        <button onclick="deleteRecord(${r.id})" class="px-3 py-1 bg-white border border-slate-300 text-slate-600 hover:border-red-500 hover:text-red-600 rounded text-[11px] font-bold transition-all shadow-sm">ลบ</button>
+                    </div>
+                </div>
+            `;
+        });
+        lucide.createIcons();
+    }
+
+    window.viewFile = async (id) => {
+        const file = await localforage.getItem(`file_${id}`);
+        if (file) {
+            const win = window.open();
+            win.document.write(`<iframe src="${file}" frameborder="0" style="width:100%; height:100%;" allowfullscreen></iframe>`);
+        }
+    };
+
+    window.editRecord = (id) => {
+        const data = db.find(x => String(x.id) === String(id));
+        if(!data) return;
+
+        currentMode = 'edit'; 
+        clearInterval(realTimeClock); // หยุดนาฬิกาวิ่ง
+
+        // 🟢 เปลี่ยนหน้ามาฟอร์มเลย โดยไม่ผ่าน openForm() (เลขจะได้ไม่รันใหม่)
+        document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+        document.getElementById('pageForm').classList.add('active');
+        
+        document.getElementById('formTitle').innerText = 'แก้ไขรายละเอียด';
+        document.getElementById('f_id').value = data.id;
+        document.getElementById('f_seq').value = data.seq; // ใช้เลขเดิม
+        document.getElementById('f_sysDate').value = data.sysDate || data.logDate;
+        document.getElementById('f_sysTime').value = data.sysTime || '';
+        document.getElementById('f_logDate').value = data.logDate;
+        document.getElementById('f_logTime').value = data.logTime || '';
+        document.getElementById('f_sender').value = data.sender || '';
+        document.getElementById('f_receiver').value = data.receiver || '';
+        document.getElementById('f_subject').value = data.subject || '';
+        document.getElementById('f_remark').value = data.remark || '';
+        document.getElementById('f_status').value = data.status;
+        
+        document.getElementById('f_logDate').readOnly = true;
+        document.getElementById('f_logTime').readOnly = true;
+        
+        if(data.hasFile) {
+            document.getElementById('f_fileStatus').innerText = "📌 มีไฟล์เดิมแนบไว้แล้ว (หากแนบใหม่จะทับของเดิม)";
+        } else {
+            document.getElementById('f_fileStatus').innerText = "";
+        }
+    };
+
+  // 🔴 ฟังก์ชันลบที่ต้องชื่อ "deleteRecord" ให้ตรงกับปุ่มของนาย
+window.deleteRecord = async (id) => {
+    // เช็คค่า ID นิดนึงเพื่อความชัวร์
+    console.log("กำลังจะลบ ID:", id);
+
+    const result = await Swal.fire({
+        title: 'ยืนยันการลบ?',
+        text: "ข้อมูลจะถูกยกเลิกแต่เลขลำดับจะยังคงอยู่",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'ลบเลย!',
+        cancelButtonText: 'ไม่ลบ'
+    });
+
+    if (result.isConfirmed) {
+        Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        
+        // 🚨 อย่าลืมเช็ค URL Apps Script ของนายนะ!
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbx5VNfb5zVE84iWVZo_6MR3yPqbdb98HQyomHoSiouoRygpdFv4_8gDmx8IT7yfX4Eu/exec'; 
+        
+        // เตรียมข้อมูลส่งไป (id ต้องส่งไปแบบ String หรือตามที่หลังบ้านต้องการ)
+        const record = { action: 'delete', id: String(id) };
+
+        try {
+            await fetch(scriptURL, { 
+                method: 'POST', 
+                mode: 'no-cors', 
+                body: JSON.stringify(record) 
+            });
+
+            // 🧹 ลบออกจาก Local Storage ด้วย (ใช้ชื่อ DB ให้ตรงกับของนาย)
+            let currentDb = JSON.parse(localStorage.getItem('OSDA_DB_PRO')) || [];
+            currentDb = currentDb.filter(x => String(x.id) !== String(id));
+            localStorage.setItem('OSDA_DB_PRO', JSON.stringify(currentDb));
+            
+            await Swal.fire({ icon: 'success', title: 'ลบสำเร็จ!', timer: 1000, showConfirmButton: false });
+            
+            // รีโหลดหน้าจอเพื่อให้ลำดับมันอัปเดต
+            location.reload(); 
+
+        } catch (error) {
+            console.error(error);
+            // ให้มันโชว์ Error ตัวจริงออกมาเลย!
+            Swal.fire({ icon: 'error', title: 'พังตรงนี้!', text: String(error) });
+        }
+    }
+};
 </script>
 </body>
 </html>
