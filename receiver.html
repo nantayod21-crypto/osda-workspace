@@ -301,13 +301,31 @@
 
     // --- ฟังก์ชันบันทึกข้อมูลแบบไม้ตาย (Bypass CORS) ---
     window.saveData = async (e) => {
-        if (e) e.preventDefault(); 
-        
+    if (e) e.preventDefault(); 
+    
+    // 1. เช็กก่อนว่ามี SweetAlert ไหม ถ้าไม่มีให้ข้ามไป alert ธรรมดา
+    const showMsg = (title, text, icon) => {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ title, text, icon });
+        } else {
+            alert(title + ": " + text);
+        }
+    };
+
+    try {
+        // 2. ป้องกันโค้ดพัง: เช็กว่ามี Element จริงไหมก่อนดึงค่า .value
+        const getValue = (id) => {
+            const el = document.getElementById(id);
+            return el ? el.value : ""; // ถ้าไม่มี ID นี้ ให้ส่งค่าว่างแทน ไม่ให้โค้ดค้าง
+        };
+
         const scriptURL = 'https://script.google.com/macros/s/AKfycbx5VNfb5zVE84iWVZo_6MR3yPqbdb98HQyomHoSiouoRygpdFv4_8gDmx8IT7yfX4Eu/exec'; 
         
-        Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        }
 
-        const id_value = document.getElementById('f_id').value;
+        const id_value = getValue('f_id');
         const isEdit = id_value ? true : false; 
         const id = isEdit ? id_value : Date.now();
         
@@ -315,47 +333,36 @@
             action: isEdit ? 'edit' : 'save',
             sheetType: 'receiver', 
             id: id,
-            seq: document.getElementById('f_seq').value,
-            sysDate: document.getElementById('f_sysDate').value,
-            sysTime: document.getElementById('f_sysTime').value,
-            logDate: document.getElementById('f_logDate').value,
-            logTime: document.getElementById('f_logTime').value,
-            sender: document.getElementById('f_sender').value,
-            receiver: document.getElementById('f_receiver').value,
-            subject: document.getElementById('f_subject').value,
-            remark: document.getElementById('f_remark').value,
-            status: document.getElementById('f_status').value
+            seq: getValue('f_seq'),
+            sysDate: getValue('f_sysDate'),
+            sysTime: getValue('f_sysTime'),
+            logDate: getValue('f_logDate'),
+            logTime: getValue('f_logTime'),
+            sender: getValue('f_sender'),
+            receiver: getValue('f_receiver'),
+            subject: getValue('f_subject'),
+            remark: getValue('f_remark'),
+            status: getValue('f_status')
         };
 
-        try {
-            // 🚀 1. ส่งข้อมูล (ใช้ no-cors เหมือนเดิม)
-            await fetch(scriptURL, { 
-                method: 'POST', 
-                mode: 'no-cors', 
-                body: JSON.stringify(record),
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-            });
+        // 3. ยิงข้อมูล
+        await fetch(scriptURL, { 
+            method: 'POST', 
+            mode: 'no-cors', 
+            body: JSON.stringify(record),
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+        });
 
-            // 🎉 2. ถ้ามาถึงตรงนี้ได้ แปลว่าส่งออกไปแล้วแน่ๆ ให้โชว์ Success เลย
-            await Swal.fire({ 
-                icon: 'success', 
-                title: 'บันทึกสำเร็จ!', 
-                text: 'ข้อมูลถูกส่งเข้าระบบเรียบร้อยแล้ว', 
-                timer: 2000 
-            });
+        showMsg('สำเร็จ!', 'บันทึกข้อมูลเรียบร้อยแล้ว', 'success');
+        
+        // รอ 2 วิแล้วรีโหลดหน้าจอ
+        setTimeout(() => location.reload(), 2000);
 
-            // 🔄 3. รีเฟรชหน้าจอเพื่อล้างค่า (หรือสั่งให้กลับไปหน้าแรก)
-            location.reload(); 
-
-        } catch (error) {
-            console.error("Error details:", error);
-            Swal.fire({ 
-                icon: 'error', 
-                title: 'แจ้งเตือน', 
-                text: 'บันทึกข้อมูลแล้ว แต่อาจมีการหน่วงของเครือข่าย' 
-            });
-        }
-    };
+    } catch (error) {
+        console.error(error);
+        showMsg('พังตรงนี้!', error.message, 'error');
+    }
+};
 
     function handleSearch() {
         const q = document.getElementById('searchInput').value.trim().toLowerCase();
