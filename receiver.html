@@ -300,35 +300,34 @@
     let submitted = false;
 
     // --- ฟังก์ชันบันทึกข้อมูลแบบไม้ตาย (Bypass CORS) ---
-    window.saveData = async (e) => {
+    // --- 1. เพิ่มฟังก์ชันจัดการวันที่ที่หายไป (ป้องกันเครื่องค้าง) ---
+function formatThaiDateShort(dateStr) {
+    if (!dateStr) return "-";
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
+// --- 2. ฟังก์ชันบันทึกข้อมูล (ฉบับสมบูรณ์ แก้ไขจุดที่ทำให้เงียบ) ---
+window.saveData = async (e) => {
     if (e) e.preventDefault(); 
     
-    // 1. เช็กก่อนว่ามี SweetAlert ไหม ถ้าไม่มีให้ข้ามไป alert ธรรมดา
-    const showMsg = (title, text, icon) => {
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({ title, text, icon });
-        } else {
-            alert(title + ": " + text);
-        }
+    const scriptURL = 'https://script.google.com/macros/s/AKfycbx5VNfb5zVE84iWVZo_6MR3yPqbdb98HQyomHoSiouoRygpdFv4_8gDmx8IT7yfX4Eu/exec'; 
+
+    // เช็ค ID ว่ามีครบไหม ป้องกันโค้ดสะดุด
+    const getValue = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.value : "";
     };
 
     try {
-        // 2. ป้องกันโค้ดพัง: เช็กว่ามี Element จริงไหมก่อนดึงค่า .value
-        const getValue = (id) => {
-            const el = document.getElementById(id);
-            return el ? el.value : ""; // ถ้าไม่มี ID นี้ ให้ส่งค่าว่างแทน ไม่ให้โค้ดค้าง
-        };
-
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbx5VNfb5zVE84iWVZo_6MR3yPqbdb98HQyomHoSiouoRygpdFv4_8gDmx8IT7yfX4Eu/exec'; 
-        
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-        }
+        // เริ่มโชว์ Loading
+        Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
         const id_value = getValue('f_id');
         const isEdit = id_value ? true : false; 
         const id = isEdit ? id_value : Date.now();
-        
+        const fileData = getValue('f_fileData');
+
         const record = {
             action: isEdit ? 'edit' : 'save',
             sheetType: 'receiver', 
@@ -342,25 +341,44 @@
             receiver: getValue('f_receiver'),
             subject: getValue('f_subject'),
             remark: getValue('f_remark'),
-            status: getValue('f_status')
+            status: getValue('f_status'),
+            hasFile: fileData ? true : false
         };
 
-        // 3. ยิงข้อมูล
+        // 🚀 ส่งไป Google Sheets
         await fetch(scriptURL, { 
             method: 'POST', 
             mode: 'no-cors', 
-            body: JSON.stringify(record),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            body: JSON.stringify(record)
         });
 
-        showMsg('สำเร็จ!', 'บันทึกข้อมูลเรียบร้อยแล้ว', 'success');
-        
-        // รอ 2 วิแล้วรีโหลดหน้าจอ
-        setTimeout(() => location.reload(), 2000);
+        // 💾 บันทึกลงเครื่อง (LocalStorage) เพื่อให้ตารางหน้าแรกอัปเดตทันที
+        let currentDb = JSON.parse(localStorage.getItem('OSDA_DB_PRO') || '[]');
+        // ถ้าเป็นการแก้ไข ให้ลบอันเก่าออกก่อน
+        currentDb = currentDb.filter(x => String(x.id) !== String(id));
+        currentDb.push(record);
+        localStorage.setItem('OSDA_DB_PRO', JSON.stringify(currentDb));
+        db = currentDb; // อัปเดตตัวแปรในหน้าเว็บ
+
+        // ถ้ามีไฟล์ ให้เซฟลง Offline Storage (localforage)
+        if (fileData) {
+            await localforage.setItem(`file_${id}`, fileData);
+        }
+
+        // 🎉 แจ้งเตือนสำเร็จ
+        await Swal.fire({ 
+            icon: 'success', 
+            title: 'สำเร็จ!', 
+            text: 'บันทึกข้อมูลเรียบร้อยแล้ว', 
+            timer: 1500 
+        });
+
+        // กลับไปหน้าแรกและอัปเดตตาราง
+        goHome(); 
 
     } catch (error) {
         console.error(error);
-        showMsg('พังตรงนี้!', error.message, 'error');
+        Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'เกิดปัญหา: ' + error.message });
     }
 };
 
