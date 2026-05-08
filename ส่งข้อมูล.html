@@ -4,14 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OSDA Document System</title>
-    
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
     <script src="https://cdn.tailwindcss.com/3.4.17"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> 
 
     <style>
         :root { --kmitl-orange: #ea580c; } /* เปลี่ยนส้มให้ดูพรีเมียมและทันสมัยขึ้น */
@@ -24,7 +26,7 @@
 
         /* บังคับให้พื้นหลังกว้างเต็มจอ ทะลุขอบเขตจำกัดความกว้างของ WordPress Theme */
         #osda-app-wrapper {
-            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%) !important; /* พื้นหลังสีเทาอ่อนสะอาดตา */
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%) !important; 
             min-height: 100vh;
             width: 100vw !important;
             position: relative;
@@ -268,7 +270,12 @@
         </div>
 
         <div id="hubPage" class="hub-container">
-            
+        
+            <button onclick="window.location.href='index.html'" 
+        class="mb-4 flex items-center gap-2 text-gray-500 hover:text-orange-600 transition-colors font-medium">
+    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+    ย้อนกลับหน้าเลือกเมนู
+</button>
             <div class="hub-header-box">
                 <div class="logo-text-osda" style="font-size: 42px !important; line-height: 1 !important; margin: 0 0 5px 0 !important; padding: 0 !important; letter-spacing: -1px !important;">OSDA</div>
             
@@ -327,7 +334,7 @@
                             <div><div class="text-xs font-bold text-slate-400 mb-1">ลงวันที่</div><input type="date" id="dateInput" required onchange="calculateSeq()"></div>
                             <div><div class="text-xs font-bold text-slate-400 mb-1">เวลาบันทึก</div><input type="text" id="timeInput" disabled class="bg-slate-50 text-slate-500"></div>
                         </div>
-                        <div><div class="text-xs font-bold text-slate-400 mb-1">เลขลำดับเอกสารส่ง</div><input type="text" id="seqDisplay" readonly class="text-center font-bold text-orange-600 bg-orange-50/50 rounded-xl border-orange-100"></div>
+                        <div><div class="text-xs font-bold text-slate-400 mb-1">เลขลำดับเอกสาร</div><input type="text" id="seqDisplay" disabled class="text-center font-mono font-bold text-orange-600 bg-orange-50/50 rounded-xl border-orange-100"></div>
                         <button type="submit" class="btn-submit">ยืนยันและบันทึกข้อมูล</button>
                     </form>
                 </div>
@@ -346,263 +353,309 @@
             </div>
         </div>
     </div>
-</div>
 
-<script>
-    // 🛡️ ยามรักษาความปลอดภัย: ถ้าไม่มีบัตรผ่าน ให้เตะกลับไปหน้า Login
-    if (sessionStorage.getItem('osda_auth') !== 'true') {
-        window.location.replace('index.html');
-    }
+</div> 
 
-    localforage.config({ name: 'OSDA_STORAGE' });
-    
-    let db = JSON.parse(localStorage.getItem('kmitl_rt_db') || '[]');
-    let currentMode = '';
-    let viewDate = new Date();
-    let selectedDateStr = new Date().toISOString().split('T')[0];
+    <script>
 
-    function toggleSidebar() {
-        const sb = document.getElementById('sidebar');
-        const ov = document.getElementById('sidebarOverlay');
-        if(sb) sb.classList.toggle('open');
-        if(ov) ov.style.display = sb.classList.contains('open') ? 'block' : 'none';
-    }
+        let db = JSON.parse(localStorage.getItem('kmitl_rt_db') || '[]');
+        let currentMode = ''; 
+        let viewDate = new Date();
+        let selectedDateStr = new Date().toISOString().split('T')[0];
 
-    function goHome() {
-        toggleSidebar();
-        document.getElementById('appModal').style.display = 'none';
-    }
+        // 🔴 URL ที่เชื่อมต่อกับ Google Apps Script 
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwVV-y5zpeatulw7eFI0dcwjIRzqx87BasCY0ltli-TemQjpNExGuHrEHgdRQDW4OYQ/exec"; 
 
-    function switchModule(m) {
-        toggleSidebar();
-        openModule(m);
-    }
-
-    function openModule(mode) {
-        currentMode = mode;
-        const dateInput = document.getElementById('dateInput');
-        const appModal = document.getElementById('appModal');
-        const formSection = document.getElementById('formSection');
-        const listSection = document.getElementById('listSection');
-        const moduleTitle = document.getElementById('moduleTitle');
-        
-        if(appModal) appModal.style.display = 'block';
-        if(formSection) formSection.style.display = (mode === 'new' || mode === 'backfill') ? 'block' : 'none';
-        if(listSection) listSection.style.display = (mode === 'edit' || mode === 'cancel') ? 'block' : 'none';
-        
-        if(moduleTitle) moduleTitle.innerText = (mode === 'new' ? 'บันทึกใหม่' : mode === 'backfill' ? 'ย้อนหลัง' : mode === 'edit' ? 'แก้ไขข้อมูล' : 'ยกเลิกรายการ');
-
-        if(mode === 'new') {
-            resetForm();
-            if(dateInput) {
-                dateInput.value = new Date().toISOString().split('T')[0];
-                dateInput.disabled = true;
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end', // ให้เด้งมุมขวาบน
+            showConfirmButton: false,
+            timer: 3000, // โชว์ 3 วินาที
+            timerProgressBar: true,
+            didOpen: (toast) => {
+                toast.onmouseenter = Swal.stopTimer;
+                toast.onmouseleave = Swal.resumeTimer;
             }
-            calculateSeq();
-        } else if(mode === 'backfill') {
-            resetForm();
-            if(dateInput) {
-                dateInput.value = new Date().toISOString().split('T')[0];
-                dateInput.disabled = false;
-            }
-            calculateSeq();
-        } else {
-            renderCalendar();
-            showList(selectedDateStr);
+        });
+        function toggleSidebar() {
+            const sb = document.getElementById('sidebar');
+            const ov = document.getElementById('sidebarOverlay');
+            if(sb) sb.classList.toggle('open');
+            if(ov) ov.style.display = sb.classList.contains('open') ? 'block' : 'none';
         }
-    }
 
-    function calculateSeq() {
-        try {
-            const editIdEl = document.getElementById('editId');
-            if(editIdEl && editIdEl.value) return; 
+        function goHome() { 
+            // 🚀 บังคับปิดแถบด้านข้างแบบเด็ดขาด (ไม่ใช้คำสั่งสลับไปมาแล้ว)
+            const sb = document.getElementById('sidebar');
+            const ov = document.getElementById('sidebarOverlay');
+            if(sb) sb.classList.remove('open');
+            if(ov) ov.style.display = 'none';
             
-            const dateInputEl = document.getElementById('dateInput');
-            const seqDisplayEl = document.getElementById('seqDisplay');
-            if(!dateInputEl || !dateInputEl.value || !seqDisplayEl) return;
+            // ปิดหน้าต่าง Modal เพื่อกลับไปหน้าเมนูหลัก
+            document.getElementById('appModal').style.display = 'none'; 
+        }
+        
+        function switchModule(m) { 
+            toggleSidebar(); 
+            openModule(m); 
+        }
 
-            const tDateStr = dateInputEl.value;
-
-            if(currentMode === 'new') {
-                const sortedAll = [...db].sort((a,b) => a.sequence.localeCompare(b.sequence, undefined, {numeric: true}));
-                let lastSeqNum = 0;
-                if(sortedAll.length > 0) {
-                    const lSeq = sortedAll[sortedAll.length-1].sequence;
-                    lastSeqNum = parseInt(lSeq.split('.')[0]);
-                }
-                seqDisplayEl.value = String(lastSeqNum + 1).padStart(4, '0');
-            } else if(currentMode === 'backfill') {
-                const dayData = db.filter(x => x.date === tDateStr).sort((a,b) => a.sequence.localeCompare(b.sequence, undefined, {numeric: true}));
-                if(dayData.length > 0) {
-                    const last = dayData[dayData.length-1].sequence;
-                    const base = last.split('.')[0];
-                    let sub = 1;
-                    if(last.includes('.')) {
-                        sub = parseInt(last.split('.').pop()) + 1;
-                    }
-                    seqDisplayEl.value = `${base}.${String(sub).padStart(2, '0')}`;
-                } else {
-                    const pastData = db.filter(x => x.date < tDateStr).sort((a,b) => {
-                        if(a.date === b.date) return a.sequence.localeCompare(b.sequence, undefined, {numeric: true});
-                        return a.date.localeCompare(b.date);
-                    });
-                    let baseNum = 0;
-                    if(pastData.length > 0) {
-                        const lSeq = pastData[pastData.length-1].sequence;
-                        baseNum = parseInt(lSeq.split('.')[0]);
-                    }
-                    seqDisplayEl.value = `${String(baseNum).padStart(4, '0')}.01`;
-                }
-            }
-        } catch (err) {}
-    }
-
-    setInterval(() => {
-        try {
-            const editIdEl = document.getElementById('editId');
-            const timeInputEl = document.getElementById('timeInput');
-            if(editIdEl !== null && timeInputEl !== null) {
-                if (editIdEl.value === "") {
-                    timeInputEl.value = new Date().toLocaleTimeString('th-TH', { hour12: false }) + " น.";
-                }
-            }
-        } catch (e) {}
-    }, 1000);
-
-    function resetForm() {
-        try {
-            const docForm = document.getElementById('docForm');
-            const editId = document.getElementById('editId');
+        function openModule(mode) {
+            currentMode = mode;
             const dateInput = document.getElementById('dateInput');
-            const deptInput = document.getElementById('department');
-            const docNumInput = document.getElementById('docNumber');
-            
-            if(docForm) docForm.reset();
-            if(editId) editId.value = '';
-            if(deptInput) deptInput.value = '';
-            if(docNumInput) docNumInput.value = '';
-            if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
-        } catch(e) {}
-    }
-
-    function renderCalendar() {
-        try {
-            const year = viewDate.getFullYear();
-            const month = viewDate.getMonth();
-            const monthNames = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
-            
-            const calendarMonthEl = document.getElementById('calendarMonth');
-            if(calendarMonthEl) {
-                calendarMonthEl.innerText = `${monthNames[month]} ${year + 543}`;
-            }
-
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            const firstDay = new Date(year, month, 1).getDay();
-
-            const cal = document.getElementById('calendarDays');
-            if(cal) {
-                cal.innerHTML = '<div>อา</div><div>จ</div><div>อ</div><div>พ</div><div>พฤ</div><div>ศ</div><div>ส</div>';
-                for(let i=0; i<firstDay; i++) cal.innerHTML += '<div></div>';
-                for(let i=1; i<=daysInMonth; i++) {
-                    const dStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
-                    const hasData = db.some(r => r.date === dStr);
-                    cal.innerHTML += `<div onclick="selectDate('${dStr}')" class="p-2 cursor-pointer rounded-xl ${dStr===selectedDateStr?'bg-orange-500 text-white font-bold':'hover:bg-slate-100'}">${i}${hasData ? '<div class="w-1.5 h-1.5 bg-orange-500 rounded-full mx-auto mt-1"></div>' : ''}</div>`;
-                }
-            }
-        } catch (err) {}
-    }
-
-    function selectDate(dStr) {
-        selectedDateStr = dStr;
-        renderCalendar();
-        showList(dStr);
-    }
-
-    function showList(dStr) {
-        try {
-            const list = document.getElementById('dataList');
-            if(!list) return;
-            list.innerHTML = '';
-            const dayData = db.filter(x => x.date === dStr).sort((a,b) => a.sequence.localeCompare(b.sequence, undefined, {numeric: true}));
-            
-            if(dayData.length === 0) {
-                list.innerHTML = '<div class="text-center text-slate-400 py-6 text-sm">ไม่มีข้อมูลในวันนี้</div>';
-                return;
-            }
-
-            dayData.forEach(r => {
-                const isCancel = currentMode === 'cancel';
-                list.innerHTML += `
-                    <div class="doc-card relative">
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-md text-sm">เลขลำดับ: ${r.sequence}</span>
-                            <span class="text-xs text-slate-400">${r.time}</span>
-                        </div>
-                        <div class="font-bold text-slate-800 mb-1 leading-tight">${r.subject}</div>
-                        <div class="text-sm text-slate-500 mb-3 line-clamp-2">${r.action}</div>
-                        <div class="text-xs text-slate-400 flex items-center gap-1 mb-3"><i data-lucide="user" class="w-3 h-3"></i> จาก: ${r.from_who} <i data-lucide="arrow-right" class="w-3 h-3 mx-1"></i> ถึง: ${r.toWho}</div>
-                        ${isCancel 
-                            ? `<button onclick="deleteItem('${r.id}')" class="w-full bg-red-50 text-red-600 font-bold py-2 rounded-xl text-sm hover:bg-red-100 transition-colors">ยกเลิกรายการ</button>`
-                            : `<button onclick="editItem('${r.id}')" class="w-full bg-slate-50 text-slate-700 font-bold py-2 rounded-xl text-sm hover:bg-slate-100 transition-colors">แก้ไขข้อมูล</button>`
-                        }
-                    </div>`;
-            });
-            if(window.lucide) lucide.createIcons();
-        } catch (err) {}
-    }
-
-    window.editItem = (id) => {
-        try {
-            const r = db.find(x => x.id === id);
-            if(!r) return;
-            currentMode = 'edit';
-            
+            const appModal = document.getElementById('appModal');
             const formSection = document.getElementById('formSection');
             const listSection = document.getElementById('listSection');
-            if(formSection) formSection.style.display = 'block';
-            if(listSection) listSection.style.display = 'none';
-
-            const editIdEl = document.getElementById('editId');
-            const fromWhoEl = document.getElementById('fromWho');
-            const toWhoEl = document.getElementById('toWho');
-            const deptEl = document.getElementById('department');
-            const docNumEl = document.getElementById('docNumber');
-            const subjectEl = document.getElementById('subject');
-            const actionEl = document.getElementById('action');
-            const dateInputEl = document.getElementById('dateInput');
-            const timeInputEl = document.getElementById('timeInput');
-            const seqDisplayEl = document.getElementById('seqDisplay');
-
-            if(editIdEl) editIdEl.value = r.id;
-            if(fromWhoEl) fromWhoEl.value = r.from_who || '';
-            if(toWhoEl) toWhoEl.value = r.toWho || '';
-            if(deptEl) deptEl.value = r.department || '';
-            if(docNumEl) docNumEl.value = r.doc_number || '';
-            if(subjectEl) subjectEl.value = r.subject || '';
-            if(actionEl) actionEl.value = r.action || '';
-            if(dateInputEl) { dateInputEl.value = r.date; dateInputEl.disabled = true; }
-            if(timeInputEl) timeInputEl.value = r.time;
-            if(seqDisplayEl) seqDisplayEl.value = r.sequence;
-
-            window.scrollTo(0,0);
-        } catch (e) {}
-    };
-
-    window.deleteItem = (id) => {
-        if(confirm('ยืนยันการลบ?')) {
-            db = db.filter(x => x.id !== id);
-            localStorage.setItem('kmitl_rt_db', JSON.stringify(db));
-            showList(selectedDateStr);
-            renderCalendar();
-        }
-    };
-
-    const docForm = document.getElementById('docForm');
-    if (docForm) {
-        docForm.addEventListener('submit', (e) => {
-            e.preventDefault();
+            const moduleTitle = document.getElementById('moduleTitle');
             
+            if(appModal) appModal.style.display = 'block';
+            if(formSection) formSection.style.display = (mode === 'new' || mode === 'backfill' || mode === 'edit_form') ? 'block' : 'none';
+            if(listSection) listSection.style.display = (mode === 'edit' || mode === 'cancel') ? 'block' : 'none';
+            
+            let titleText = '';
+            if (mode === 'new') titleText = 'บันทึกใหม่';
+            else if (mode === 'backfill') titleText = 'ย้อนหลัง';
+            else if (mode === 'edit') titleText = 'เลือกรายการที่ต้องการแก้ไข';
+            else if (mode === 'cancel') titleText = 'ยกเลิกรายการ';
+            else if (mode === 'edit_form') titleText = 'กำลังแก้ไขข้อมูล...';
+            
+            if(moduleTitle) moduleTitle.innerText = titleText;
+            
+            if(mode === 'new') {
+                resetForm();
+                if(dateInput) {
+                    dateInput.value = new Date().toISOString().split('T')[0];
+                    dateInput.disabled = true; 
+                }
+            } else if(mode === 'backfill') {
+                resetForm();
+                if(dateInput) dateInput.disabled = false; 
+            }
+
+            if(mode === 'edit' || mode === 'cancel') { renderCalendar(); showList(selectedDateStr); }
+            if(window.lucide) lucide.createIcons();
+            
+            if (mode === 'new' || mode === 'backfill') {
+                 calculateSeq();
+            }
+        }
+
+        // --- ระบบรันเลขจาก Google Sheets ---
+        async function calculateSeq() {
             try {
+                const editIdEl = document.getElementById('editId');
+                // ถือว่าถ้ามี ID แล้ว (คือโหมดแก้ไข) ไม่ต้องไปรันเลขใหม่ ให้ใช้เลขเดิม
+                if(editIdEl && editIdEl.value) return; 
+                
+                const dateInputEl = document.getElementById('dateInput');
+                if(!dateInputEl || !dateInputEl.value) return;
+                
+                const seqDisplayEl = document.getElementById('seqDisplay');
+                if(!seqDisplayEl) return;
+
+                seqDisplayEl.value = "⏳ กำลังรันเลข...";
+
+                const mode = (typeof currentMode !== 'undefined' && currentMode === 'new') ? 'new' : 'backfill';
+                const targetDate = dateInputEl.value;
+
+                const response = await fetch(`${WEB_APP_URL}?action=getSeq&sheet=ข้อมูลส่ง&mode=${mode}&date=${targetDate}`);
+                const result = await response.json();
+                
+                if (result.status === "success" && result.seq) {
+                    seqDisplayEl.value = result.seq;
+                } else {
+                    seqDisplayEl.value = "0001"; 
+                }
+            } catch (err) {
+                console.error("Fetch Seq Error:", err);
+                const seqDisplayEl = document.getElementById('seqDisplay');
+                if(seqDisplayEl) seqDisplayEl.value = "0001"; 
+            }
+        }
+
+        // --- ระบบบันทึก (ใหม่) และ แก้ไข (Edit) ---
+        document.addEventListener('DOMContentLoaded', () => {
+            if(window.lucide) lucide.createIcons();
+
+            const docForm = document.getElementById('docForm');
+            if (docForm) {
+                docForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    
+                    const btnSubmit = document.querySelector('.btn-submit');
+                    const originalText = btnSubmit ? btnSubmit.innerText : 'บันทึก';
+                    if(btnSubmit) {
+                        btnSubmit.innerText = 'กำลังบันทึกข้อมูล... ⏳';
+                        btnSubmit.disabled = true;
+                    }
+
+                    try {
+                        const id = document.getElementById('editId')?.value || '';
+                        const seqVal = document.getElementById('seqDisplay')?.value || '0001';
+                        const dateVal = document.getElementById('dateInput')?.value || '';
+                        const timeVal = document.getElementById('timeInput')?.value || '';
+                        const senderVal = document.getElementById('fromWho')?.value || '';
+                        const toWhoVal = document.getElementById('toWho')?.value || '';
+                        const deptVal = document.getElementById('department')?.value || '';
+                        const docNumVal = document.getElementById('docNumber')?.value || '';
+                        const subjectVal = document.getElementById('subject')?.value || '';
+                        const actionVal = document.getElementById('action')?.value || '';
+
+                        // 💡 เช็คว่ามี ID ไหม ถ้ามีแปลว่ากำลัง "แก้ไข" (edit), ถ้าไม่มีแปลว่า "สร้างใหม่" (new/backfill)
+                        const actionType = id ? 'edit' : 'new'; 
+                        const finalId = id || Date.now().toString(); // สร้าง ID ใหม่ถ้ายังไม่มี
+
+                        // แพ็คข้อมูลส่ง Google Sheets
+                        const payload = {
+                            action: actionType,       // 🎯 ส่งแอคชันให้ Code.gs รู้
+                            targetSheet: "ข้อมูลส่ง", // 🎯 บอกให้รู้ว่าลงชีทไหน
+                            seq: seqVal,
+                            logDate: dateVal,
+                            logTime: timeVal,
+                            sender: senderVal,
+                            receiver: toWhoVal + (deptVal ? ` (${deptVal})` : ''),
+                            subject: subjectVal,
+                            remark: (docNumVal ? `เลขที่: ${docNumVal} ` : '') + actionVal,
+                            status: (actionType === 'edit') ? 'แก้ไขแล้ว' : ((currentMode === 'new') ? 'ส่งปกติ' : 'ส่งย้อนหลัง'),
+                            id: finalId
+                        };
+
+                        // ยิงข้อมูลไปหลังบ้าน
+                        await fetch(WEB_APP_URL, {
+                            method: 'POST',
+                            mode: 'no-cors',
+                            body: JSON.stringify(payload)
+                        });
+
+                        // เซฟลงเบราว์เซอร์
+                        const record = { 
+                            id: finalId, 
+                            from_who: senderVal, 
+                            to_who: toWhoVal, 
+                            department: deptVal,
+                            doc_number: docNumVal,
+                            subject: subjectVal, 
+                            action: actionVal, 
+                            date: dateVal, 
+                            time: timeVal, 
+                            sequence: seqVal 
+                        };
+                        
+                        if(id) { 
+                            const idx = db.findIndex(x => x.id === id); 
+                            if(idx !== -1) db[idx] = record; 
+                        } else { 
+                            db.push(record); 
+                        }
+                        
+                        localStorage.setItem('kmitl_rt_db', JSON.stringify(db));
+                        
+                        // เปลี่ยนจาก alert ธรรมดา เป็น Toast เด้งมุมขวา
+                        Toast.fire({
+                            icon: 'success',
+                            title: 'บันทึกข้อมูลสำเร็จ!'
+                        });
+                        
+                        resetForm();
+                        goHome();
+
+                    } catch (err) {
+                        console.error('Submit Error: ', err);
+                        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่');
+                    } finally {
+                        if(btnSubmit) {
+                            btnSubmit.innerText = originalText;
+                            btnSubmit.disabled = false;
+                        }
+                    }
+                });
+            }
+        });
+
+        // นาฬิกาเดินอัตโนมัติ
+        setInterval(() => { 
+            try {
+                const editIdEl = document.getElementById('editId');
+                const timeInputEl = document.getElementById('timeInput');
+                if(editIdEl && timeInputEl) {
+                    if (editIdEl.value === "") {
+                        timeInputEl.value = new Date().toLocaleTimeString('th-TH', { hour12: false }) + " น."; 
+                    }
+                }
+            } catch (e) {}
+        }, 1000);
+
+        // ระบบล้างฟอร์ม
+        function resetForm() {
+            try {
+                const docForm = document.getElementById('docForm');
+                if(docForm) docForm.reset();
+                
+                ['editId', 'department', 'docNumber'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if(el) el.value = '';
+                });
+                
+                const dateInput = document.getElementById('dateInput');
+                if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+            } catch(e) {}
+        }
+
+        // ระบบตารางและปฏิทิน
+        function renderCalendar() {
+            try {
+                const year = viewDate.getFullYear();
+                const month = viewDate.getMonth();
+                const monthNames = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+                
+                const calendarMonthEl = document.getElementById('calendarMonth');
+                if(calendarMonthEl) {
+                    calendarMonthEl.innerText = `${monthNames[month]} ${year + 543}`;
+                }
+
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const firstDay = new Date(year, month, 1).getDay();
+                const cal = document.getElementById('calendarDays');
+                
+                if(cal) {
+                    cal.innerHTML = '<div>อา</div><div>จ</div><div>อ</div><div>พ</div><div>พฤ</div><div>ศ</div><div>ส</div>';
+                    for(let i=0; i<firstDay; i++) cal.innerHTML += '<div></div>';
+                    for(let i=1; i<=daysInMonth; i++) {
+                        const dStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+                        const hasData = db.some(r => r.date === dStr);
+                        cal.innerHTML += `<div onclick="selectDate('${dStr}')" class="p-2 cursor-pointer rounded-xl ${dStr===selectedDateStr?'bg-orange-500 text-white font-bold':'hover:bg-slate-100'}">${i}${hasData && dStr!==selectedDateStr?'<div class="w-1.5 h-1.5 bg-orange-400 mx-auto rounded-full mt-1"></div>':''}</div>`;
+                    }
+                }
+            } catch(e) {}
+        }
+
+        function selectDate(d) { selectedDateStr = d; renderCalendar(); showList(d); }
+        
+        function showList(d) {
+            try {
+                const container = document.getElementById('dataList');
+                if(!container) return;
+                
+                const filtered = db.filter(r => r.date === d).sort((a,b) => b.sequence.localeCompare(a.sequence, undefined, {numeric: true}));
+                container.innerHTML = filtered.length ? '' : '<div class="text-center py-10 text-slate-300">ไม่มีข้อมูล</div>';
+                filtered.forEach(r => {
+                    const card = document.createElement('div'); card.className = 'doc-card';
+                    card.innerHTML = `<div class="flex justify-between items-start mb-2"><div class="text-xs font-mono font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded">${r.sequence}</div><button onclick="${currentMode==='edit'?`editItem('${r.id}')`:`deleteItem('${r.id}')`}" class="${currentMode==='edit'?'bg-orange-500':'bg-red-500'} text-white px-3 py-1 rounded-lg text-xs border-none cursor-pointer hover:opacity-80">${currentMode==='edit'?'แก้ไข':'ลบ'}</button></div><div class="text-sm font-bold text-slate-700">${r.subject}</div><div class="text-[10px] text-slate-400 mt-2 flex justify-between italic bg-slate-50 p-1 rounded"><div>${r.time}</div><div>${r.from_who} → ${r.to_who} ${r.department ? `(${r.department})` : ''}</div></div>`;
+                    container.appendChild(card);
+                });
+                if(window.lucide) lucide.createIcons();
+            } catch (e) {}
+        }
+
+        // --- ฟังก์ชันเมื่อกดปุ่ม "แก้ไข" จากตาราง ---
+        window.editItem = (id) => {
+            try {
+                const r = db.find(x => x.id === id);
+                if(!r) return;
+                
+                // เปลี่ยนหน้าต่างไปแสดงฟอร์ม
+                openModule('edit_form'); 
+                
                 const editIdEl = document.getElementById('editId');
                 const fromWhoEl = document.getElementById('fromWho');
                 const toWhoEl = document.getElementById('toWho');
@@ -614,165 +667,200 @@
                 const timeInputEl = document.getElementById('timeInput');
                 const seqDisplayEl = document.getElementById('seqDisplay');
 
-                const record = { 
-                    id: (editIdEl && editIdEl.value) ? editIdEl.value : Date.now().toString(), 
-                    from_who: fromWhoEl ? fromWhoEl.value : '', 
-                    toWho: toWhoEl ? toWhoEl.value : '', 
-                    department: deptEl ? deptEl.value : '', 
-                    doc_number: docNumEl ? docNumEl.value : '', 
-                    subject: subjectEl ? subjectEl.value : '', 
-                    action: actionEl ? actionEl.value : '', 
-                    date: dateInputEl ? dateInputEl.value : '', 
-                    time: timeInputEl ? timeInputEl.value : '', 
-                    sequence: seqDisplayEl ? seqDisplayEl.value : '' 
+                // นำข้อมูลเก่ามาใส่ในช่องต่างๆ
+                if(editIdEl) editIdEl.value = r.id;
+                if(fromWhoEl) fromWhoEl.value = r.from_who || '';
+                if(toWhoEl) toWhoEl.value = r.to_who || '';
+                if(deptEl) deptEl.value = r.department || '';
+                if(docNumEl) docNumEl.value = r.doc_number || '';
+                if(subjectEl) subjectEl.value = r.subject || '';
+                if(actionEl) actionEl.value = r.action || '';
+                if(dateInputEl) {
+                    dateInputEl.value = r.date;
+                    dateInputEl.disabled = true; // ล็อควันที่ไว้ไม่ให้แก้ ป้องกันลำดับพัง
+                }
+                if(timeInputEl) timeInputEl.value = r.time;
+                if(seqDisplayEl) seqDisplayEl.value = r.sequence;
+                
+                window.scrollTo(0,0);
+            } catch (e) {}
+        };
+        
+        // --- 🔴 อัปเกรดฟังก์ชันการ "ลบ" ให้ไปคุยกับ Sheets ---
+        window.deleteItem = (id) => { 
+            // ใช้ SweetAlert เด้งถามตรงกลางแบบสวยๆ ก่อนลบ
+            Swal.fire({
+                title: 'ยืนยันการลบ?',
+                text: "คุณต้องการยกเลิกและลบรายการนี้ใช่หรือไม่?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ea580c', // สีส้มเข้ากับธีม
+                cancelButtonColor: '#94a3b8',
+                confirmButtonText: 'ใช่, ลบเลย!',
+                cancelButtonText: 'ปิด',
+                customClass: {
+                    popup: 'rounded-3xl' // ขอบมน
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // ยิงคำสั่งไปลบที่ Google Sheets
+                    fetch(WEB_APP_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        body: JSON.stringify({
+                            action: 'delete_outgoing', // คำสั่งลบ
+                            targetSheet: "ข้อมูลส่ง",
+                            id: String(id)
+                        })
+                    });
+
+                    // ลบในหน้าเว็บ
+                    db = db.filter(x => x.id !== id); 
+                    localStorage.setItem('kmitl_rt_db', JSON.stringify(db)); 
+                    showList(selectedDateStr); 
+                    renderCalendar(); 
+
+                    // 🚀 เด้งติ๊กถูกที่มุมขวาบน!
+                    Toast.fire({
+                        icon: 'success',
+                        title: 'ลบรายการเรียบร้อยแล้ว!'
+                    });
+                }
+            });
+        };
+
+        function changeMonth(v) { viewDate.setMonth(viewDate.getMonth() + v); renderCalendar(); }
+
+        // --- ระบบส่งออก Excel (อันเดิม ไม่ได้ยุ่ง) ---
+        async function exportCurrentMonthToExcel() {
+            try {
+                if(typeof ExcelJS === 'undefined' || typeof saveAs === 'undefined') {
+                    alert('ระบบกำลังโหลดตัวจัดการ Excel กรุณารอสักครู่แล้วลองกดใหม่อีกครั้ง');
+                    return;
+                }
+
+                const year = viewDate.getFullYear();
+                const month = viewDate.getMonth();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const monthNames = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+
+                const wb = new ExcelJS.Workbook();
+                wb.creator = 'OSDA System';
+                wb.created = new Date();
+
+                let hasAnyData = false;
+                let prevLastSequence = "";
+                const firstDayOfMonthStr = `${year}-${String(month+1).padStart(2,'0')}-01`;
+                const pastRecords = db.filter(r => r.date < firstDayOfMonthStr).sort((a,b) => {
+                    if(a.date === b.date) return a.sequence.localeCompare(b.sequence, undefined, {numeric: true});
+                    return a.date.localeCompare(b.date);
+                });
+                if(pastRecords.length > 0) {
+                    prevLastSequence = pastRecords[pastRecords.length - 1].sequence;
+                }
+
+                let lastSheetName = null;
+                let lastCellRef = null;
+                let currentTrackingSequence = prevLastSequence; 
+
+                const applyBorders = (cell) => {
+                    cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
                 };
 
-                if (editIdEl && editIdEl.value) {
-                    const index = db.findIndex(x => x.id === editIdEl.value);
-                    if(index > -1) db[index] = record;
-                } else {
-                    db.push(record);
-                }
-                
-                localStorage.setItem('kmitl_rt_db', JSON.stringify(db));
+                for(let i=1; i<=daysInMonth; i++) {
+                    const dStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+                    const sheetName = String(i).padStart(2,'0'); 
+                    const ws = wb.addWorksheet(sheetName);
+                    
+                    ws.pageSetup = { 
+                        paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, 
+                        margins: { left: 0.25, right: 0.25, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 } 
+                    };
 
-                Swal.fire({
-                    icon: 'success',
-                    title: 'สำเร็จ!',
-                    text: 'บันทึกข้อมูลเรียบร้อย',
-                    timer: 1500
-                });
-                
-                goHome();
+                    ws.columns = [
+                        { width: 10 }, { width: 12 }, { width: 15 }, { width: 10 }, { width: 12 }, { width: 12 }, 
+                        { width: 15 }, { width: 15 }, { width: 12 }, { width: 45 }, { width: 12 }, { width: 12 }, 
+                        { width: 15 }, { width: 25 }
+                    ];
 
-            } catch (err) {
-                console.error('Submit Error: ', err);
-            }
-        });
-    }
+                    const row1 = ws.getRow(1);
+                    row1.getCell(1).value = dStr; 
+                    row1.getCell(1).font = { name: 'TH SarabunPSK', size: 16 };
+                    
+                    const cellM1 = row1.getCell(13);
+                    if (lastSheetName && lastCellRef) {
+                        cellM1.value = { formula: `='${lastSheetName}'!${lastCellRef}`, result: currentTrackingSequence };
+                    } else {
+                        cellM1.value = currentTrackingSequence; 
+                    }
+                    cellM1.numFmt = '@'; 
+                    cellM1.font = { name: 'TH SarabunPSK', size: 16 };
+                    cellM1.alignment = { horizontal: 'right' };
 
-    function changeMonth(v) {
-        viewDate.setMonth(viewDate.getMonth() + v);
-        renderCalendar();
-    }
+                    const cellN1 = row1.getCell(14);
+                    cellN1.value = 'เลขสุดท้ายวันทำการก่อนหน้า';
+                    cellN1.font = { name: 'TH SarabunPSK', size: 16 };
 
-    async function exportCurrentMonthToExcel() {
-        try {
-            if(typeof ExcelJS === 'undefined' || typeof saveAs === 'undefined') {
-                alert('ระบบกำลังโหลดตัวจัดการ Excel กรุณารอสักครู่แล้วลองกดใหม่อีกครั้ง');
-                return;
-            }
+                    const row2 = ws.getRow(2);
+                    row2.height = 35; 
+                    const headers = ['ลำดับที่\nทั่วไป', 'เลขลำดับ\nหนังสือรับ', 'เลขลำดับ\nหนังสือส่ง', 'เลขที่', 'ลงวันที่', 'วันที่\nดำเนินการ', 'จาก', 'ถึง', 'หน่วยรับ', 'เรื่อง', 'การปฏิบัติ', 'หมายเหตุ'];
+                    
+                    headers.forEach((headerText, index) => {
+                        const cell = row2.getCell(index + 1);
+                        cell.value = headerText;
+                        cell.font = { name: 'TH SarabunPSK', size: 16, bold: true }; 
+                        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } }; 
+                        applyBorders(cell);
+                    });
 
-            const year = viewDate.getFullYear();
-            const month = viewDate.getMonth();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            const monthNames = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+                    const dayData = db.filter(r => r.date === dStr).sort((a,b) => a.sequence.localeCompare(b.sequence, undefined, {numeric: true}));
+                    let dataToRender = dayData.length > 0 ? dayData : [ { isEmpty: true } ];
+                    if (dayData.length > 0) hasAnyData = true;
+                    let lastDataRowIdx = 2;
 
-            const wb = new ExcelJS.Workbook();
-            wb.creator = 'OSDA System';
-            wb.created = new Date();
+                    dataToRender.forEach((item, index) => {
+                        const rIdx = 3 + index;
+                        const dataRow = ws.getRow(rIdx);
+                        dataRow.height = 25; 
+                        dataRow.getCell(1).value = index + 1; 
+                        dataRow.getCell(2).value = ''; 
+                        
+                        if (!item.isEmpty) {
+                            const seqCell = dataRow.getCell(3);
+                            seqCell.value = item.sequence;
+                            seqCell.numFmt = '@'; 
+                            
+                            dataRow.getCell(4).value = item.doc_number || ''; 
+                            dataRow.getCell(5).value = item.date; 
+                            dataRow.getCell(6).value = item.date; 
+                            dataRow.getCell(7).value = item.from_who; 
+                            dataRow.getCell(8).value = item.to_who; 
+                            dataRow.getCell(9).value = item.department || ''; 
+                            dataRow.getCell(10).value = item.subject + (item.action ? ` / ${item.action}` : ''); 
+                            dataRow.getCell(11).value = ''; 
+                            dataRow.getCell(12).value = ''; 
+                            currentTrackingSequence = item.sequence; 
+                        } else {
+                            dataRow.getCell(3).value = '';
+                            dataRow.getCell(3).numFmt = '@';
+                        }
 
-            let hasAnyData = false;
-            let prevLastSequence = "";
-
-            const firstDayOfMonthStr = `${year}-${String(month+1).padStart(2,'0')}-01`;
-            const pastRecords = db.filter(r => r.date < firstDayOfMonthStr).sort((a,b) => {
-                if(a.date === b.date) return a.sequence.localeCompare(b.sequence, undefined, {numeric: true});
-                return a.date.localeCompare(b.date);
-            });
-            if(pastRecords.length > 0) {
-                prevLastSequence = pastRecords[pastRecords.length - 1].sequence;
-            }
-
-            let lastSheetName = null;
-            let lastCellRef = null;
-            let currentTrackingSequence = prevLastSequence;
-
-            const applyBorders = (cell) => {
-                cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-            };
-
-            for(let i=1; i<=daysInMonth; i++) {
-                const dStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
-                const sheetName = String(i).padStart(2,'0');
-                const ws = wb.addWorksheet(sheetName);
-                
-                ws.columns = [
-                    { width: 8 }, { width: 12 }, { width: 12 }, { width: 15 },
-                    { width: 12 }, { width: 12 }, { width: 25 }, { width: 25 },
-                    { width: 15 }, { width: 35 }, { width: 20 }, { width: 20 }
-                ];
-
-                const row1 = ws.getRow(1);
-                row1.height = 30;
-                row1.getCell(1).value = dStr;
-                row1.getCell(1).font = { name: 'TH SarabunPSK', size: 16 };
-
-                const cellM1 = row1.getCell(13);
-                if (lastSheetName && lastCellRef) {
-                    cellM1.value = { formula: `='${lastSheetName}'!${lastCellRef}`, result: currentTrackingSequence };
-                } else {
-                    cellM1.value = currentTrackingSequence;
-                }
-                cellM1.numFmt = '@';
-                cellM1.font = { name: 'TH SarabunPSK', size: 16 };
-                cellM1.alignment = { horizontal: 'right' };
-                
-                const cellN1 = row1.getCell(14);
-                cellN1.value = 'เลขสุดท้ายวันทำการก่อนหน้า';
-                cellN1.font = { name: 'TH SarabunPSK', size: 16 };
-
-                const row2 = ws.getRow(2);
-                row2.height = 35;
-                const headers = ['ลำดับที่\nทั่วไป', 'เลขลำดับ\nหนังสือรับ', 'เลขลำดับ\nหนังสือส่ง', 'เลขที่', 'ลงวันที่', 'วันที่\nดำเนินการ', 'จาก', 'ถึง', 'หน่วยรับ', 'เรื่อง', 'การปฏิบัติ', 'หมายเหตุ'];
-                
-                headers.forEach((headerText, index) => {
-                    const cell = row2.getCell(index + 1);
-                    cell.value = headerText;
-                    cell.font = { name: 'TH SarabunPSK', size: 16, bold: true };
-                    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-                    applyBorders(cell);
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
-                });
-
-                const dayData = db.filter(r => r.date === dStr).sort((a,b) => a.sequence.localeCompare(b.sequence, undefined, {numeric: true}));
-                let lastDataRowIdx = 2;
-
-                if(dayData.length > 0) {
-                    hasAnyData = true;
-                    dayData.forEach((r, idx) => {
-                        const rIdx = idx + 3;
-                        const row = ws.getRow(rIdx);
-                        row.height = 25;
-                        currentTrackingSequence = r.sequence;
-
-                        const rowData = [
-                            idx + 1, '', r.sequence, r.doc_number || '', r.date, r.date, 
-                            r.from_who || '', r.toWho || '', r.department || '', 
-                            r.subject || '', r.action || '', ''
-                        ];
-
-                        rowData.forEach((val, colIdx) => {
-                            const cell = row.getCell(colIdx + 1);
-                            cell.value = val;
+                        for(let c=1; c<=12; c++) {
+                            const cell = dataRow.getCell(c);
                             cell.font = { name: 'TH SarabunPSK', size: 16 };
                             applyBorders(cell);
-                            
-                            if ([1, 2, 3, 5, 6].includes(colIdx + 1)) {
+                            if([1, 2, 3, 4, 5, 6, 9].includes(c)) {
                                 cell.alignment = { vertical: 'top', horizontal: 'center', wrapText: true };
                             } else {
                                 cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
                             }
-                        });
+                        }
                         lastDataRowIdx = rIdx;
                     });
 
                     lastSheetName = sheetName;
-                    if (dayData.length > 0) {
-                        lastCellRef = `C${lastDataRowIdx}`; 
-                    } else {
-                        lastCellRef = `M1`; 
-                    }
+                    lastCellRef = (dayData.length > 0) ? `C${lastDataRowIdx}` : `M1`; 
                 }
 
                 if(!hasAnyData) {
