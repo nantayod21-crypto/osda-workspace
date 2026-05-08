@@ -328,6 +328,36 @@
             if (el) el.value = item[key];
         });
     };
+    function handleSearch() {
+    const text = document.getElementById('searchInput').value.toLowerCase();
+    const filtered = db.filter(item => 
+        item.sheetType === 'receiver' && 
+        (item.subject.toLowerCase().includes(text) || item.sender.toLowerCase().includes(text))
+    );
+    renderFilteredList(filtered);
+}
+
+function renderFilteredList(data) {
+    // ฟังก์ชันนี้จะทำงานเหมือน renderList แต่ใช้ข้อมูลที่กรองแล้ว
+    // (ถ้าหน้า receiver มีช่องค้นหา อย่าลืมใส่ id="searchInput" นะครับ)
+}
+
+    window.deleteRecord = async (id) => {
+    const result = await Swal.fire({
+        title: 'ยืนยันการลบ?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'ลบเลย',
+        cancelButtonText: 'ยกเลิก'
+    });
+
+    if (result.isConfirmed) {
+        db = db.filter(x => String(x.id) !== String(id));
+        localStorage.setItem('OSDA_DB_PRO', JSON.stringify(db));
+        renderList();
+        Swal.fire('ลบเรียบร้อย!', '', 'success');
+    }
+};
 </script>
 </script>
 </body>
